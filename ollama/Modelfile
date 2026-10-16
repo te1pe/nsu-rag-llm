@@ -1,0 +1,8 @@
+# Build:  ollama create qwen3.5-9b-8k -f ollama/Modelfile
+#
+# Why this file exists: Ollama's default context window is 4096 tokens. A RAG prompt
+# with retrieved chunks silently overflows it, and the oldest part of the prompt is
+# dropped without any error. Pinning num_ctx in a Modelfile makes the 8k budget
+# survive restarts and reproduces identically for anyone who clones the repo.
+FROM qwen3.5:9b
+PARAMETER num_ctx 8192

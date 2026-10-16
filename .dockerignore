@@ -1,0 +1,17 @@
+.git/
+.github/
+.venv/
+data/
+qdrant_storage/
+eval/
+docs/
+tests/
+ollama/
+.env
+.env.*
+!.env.example
+.ruff_cache/
+.pytest_cache/
+__pycache__/
+*.pyc
+.DS_Store

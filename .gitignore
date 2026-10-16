@@ -1,0 +1,46 @@
+# --- Authored materials: NEVER commit (third-party copyright) ---
+data/
+Claude outputs/
+
+# --- Secrets ---
+.env
+.env.*
+!.env.example
+
+# --- Local stores / caches ---
+qdrant_storage/
+.cache/
+eval/reports/*.local.md
+
+# --- Model weights & artifacts ---
+*.gguf
+*.safetensors
+*.onnx
+*.pt
+*.pth
+*.ckpt
+models/
+.hf_cache/
+.torch/
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+.ipynb_checkpoints/
+
+# --- OS / editors ---
+.DS_Store
+.idea/
+.vscode/
+*.swp

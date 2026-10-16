@@ -1,0 +1,99 @@
+[project]
+name = "nsu-rag-llm"
+version = "0.1.0"
+description = "RAG question answering over NSU FIT course materials"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "fastapi>=0.141,<0.142",
+    "uvicorn[standard]>=0.53,<0.54",
+    "pydantic-settings>=2.15,<3",
+    "openai>=3.19,<4",
+    "httpx>=0.28,<0.29",
+    "qdrant-client>=1.19,<2",
+    "typer>=0.26,<0.28",
+    "rich>=15,<16",
+    "pyyaml>=6.0,<7",
+    # Inventory needs page counts and a text sample from every PDF; PyMuPDF is
+    # small and fast, so it stays in the default set.
+    "pymupdf>=1.28,<2",
+    # The PDF parser (phase 1b). Its layout model ships inside the wheel as
+    # ONNX files, so parsing - and the tests that cover it - need no network.
+    "pymupdf4llm>=1.28,<2",
+    # Stemming for BM25 (phase 2): the Snowball algorithms for Russian and
+    # English, in pure Python.
+    "snowballstemmer>=3.0,<4",
+    # BM25 scores the whole corpus per query as vector arithmetic.
+    "numpy>=2.0,<3",
+    # The agent (phase 5): LangGraph holds its state and edges; the nodes are
+    # this project's own functions, not LangChain wrappers (ADR-031).
+    "langgraph>=1.2.12,<2",
+]
+
+[project.optional-dependencies]
+# Heavy, and only needed for OCR and DOCX - kept out of the default install so
+# that CI does not pull in torch.
+ingest = [
+    "docling>=2.130,<3",
+    # docling's OCR through macOS's own Vision framework (phase 4.5, ADR-030).
+    "ocrmac>=1.0.1 ; sys_platform == 'darwin'",
+]
+ml = [
+    "sentence-transformers>=6.1,<7",
+    "torch>=2.14,<3",
+]
+
+[project.scripts]
+nsu-rag = "nsu_rag_llm.cli:app"
+
+# On Linux - the API image - torch comes from PyTorch's CPU-only index: the
+# wheel on PyPI pulls in gigabytes of CUDA libraries for a container that has
+# no GPU. macOS keeps PyPI's wheel, with Metal (ADR-032).
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu", marker = "sys_platform == 'linux'" }]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1,<10",
+    "pytest-asyncio>=1.4,<2",
+    "ruff>=0.16,<0.17",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/nsu_rag_llm"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py314"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "B", "BLE", "C4", "SIM", "PTH", "RUF"]
+# RUF001-003 flag Cyrillic letters that look like Latin ones. Reports and CLI
+# output in this project are written in Russian, so the rule fires on ordinary
+# prose and cannot tell a typo from the intended text. Code, names and
+# docstrings stay English, which is where a homoglyph would actually hurt.
+ignore = ["RUF001", "RUF002", "RUF003"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+addopts = "-q --strict-markers"
+filterwarnings = [
+    # PyMuPDF's SWIG bindings warn on import under Python 3.14; nothing we can
+    # act on, and it buries the actual test output.
+    "ignore:builtin type Swig.*has no __module__ attribute:DeprecationWarning",
+]

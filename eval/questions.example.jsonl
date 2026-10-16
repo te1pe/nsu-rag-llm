@@ -1,0 +1,2 @@
+{"id": "q001", "course": "os", "question": "Чем процесс отличается от потока?", "type": "comparison", "gold": [{"file": "os/sem4/<файл>.pdf", "pages": [34, 35]}], "reference_answer": "Ответ своими словами по указанным страницам."}
+{"id": "q002", "course": "os", "question": "Вопрос, ответа на который в методичках нет.", "type": "unanswerable", "gold": [], "reference_answer": "В методичках этого нет."}

@@ -1,0 +1,2 @@
+{"id": "q001", "answer_run": "2026-10-05-hybrid+rerank-qwen3.5-9b", "faithful": true, "complete": false, "note": "Верно, но пропущено второе отличие из эталона."}
+{"id": "q002", "answer_run": "2026-10-05-hybrid+rerank-qwen3.5-9b", "faithful": false, "complete": false, "note": "Формула не из фрагментов."}
