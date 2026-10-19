@@ -1,1406 +1,1445 @@
-# Architecture decision records
+# Записи архитектурных решений
 
-Short records of the decisions that were not obvious, each with the
-alternatives that were rejected and why. Newest last.
+Короткие записи о неочевидных решениях, у каждой — отвергнутые альтернативы и
+причины. Новые — в конце.
 
-## Index
+## Оглавление
 
-**Environment and configuration**
+**Окружение и конфигурация**
 
-- ADR-001. Python 3.14 rather than the 3.12 named in CLAUDE.md
-- ADR-002. Sampling parameters live in configuration, not in the Modelfile
-- ADR-003. Thinking is switched off with `reasoning_effort: "none"`
-- ADR-004. `num_ctx 8192` is pinned in `ollama/Modelfile`
+- ADR-001. Python 3.14, а не 3.12, указанный в CLAUDE.md
+- ADR-002. Параметры сэмплирования живут в конфигурации, а не в Modelfile
+- ADR-003. Режим рассуждений (thinking) выключается через `reasoning_effort: "none"`
+- ADR-004. `num_ctx 8192` зафиксирован в `ollama/Modelfile`
 
-**The corpus: inventory and layout**
+**Корпус: инвентаризация и раскладка**
 
-- ADR-005. Course materials are laid out as `data/raw/<slug>/sem<N>/`
-- ADR-007. A document's text layer is judged by characters per sampled page
-- ADR-008. The MVP is ranked on "usable pages", not on total pages
-- ADR-010. `courses.yaml` is regenerated without touching the author's edits
-- ADR-016. The primary copy of a duplicate comes from the manifest, and include decisions follow the content
-- ADR-017. Where a text layer came from is recorded: born-digital or somebody else's OCR
+- ADR-005. Учебные материалы раскладываются как `data/raw/<slug>/sem<N>/`
+- ADR-007. Текстовый слой документа оценивается по числу символов на выборочную страницу
+- ADR-008. Курсы для MVP ранжируются по «пригодным страницам», а не по общему числу страниц
+- ADR-010. `courses.yaml` перегенерируется, не трогая правки автора
+- ADR-016. Основная копия дубликата берётся из манифеста, а решения о включении следуют за содержимым
+- ADR-017. Происхождение текстового слоя записывается: изначально цифровой или чужой OCR
 
-**Parsing and OCR**
+**Парсинг и OCR**
 
-- ADR-009. OCR runs through RapidOCR with the language code `iso:ru`
-- ADR-011. A page number is the 1-based position of the page in the PDF file
-- ADR-012. PDFs are parsed by pymupdf4llm's layout model, with two repairs
-- ADR-013. The parse cache is keyed by content hash and parser version; cleaning is never cached
-- ADR-014. Two parse processes, not four
-- ADR-015. The running-header safety net only touches the outermost line, on most pages
-- ADR-018. Parse quality is judged against each page's own text layer
-- ADR-019. Private-use glyphs are mapped only when their font is known
-- ADR-030. The full corpus is a second index built by the same pipeline
+- ADR-009. OCR идёт через RapidOCR с кодом языка `iso:ru`
+- ADR-011. Номер страницы — её позиция в PDF-файле, начиная с 1
+- ADR-012. PDF разбираются layout-моделью pymupdf4llm с двумя доработками
+- ADR-013. Ключ кэша парсинга — хеш содержимого и версия парсера; очистка никогда не кэшируется
+- ADR-014. Два процесса парсинга, а не четыре
+- ADR-015. Страховка от колонтитулов трогает только крайнюю строку и только на большинстве страниц
+- ADR-018. Качество парсинга оценивается по собственному текстовому слою каждой страницы
+- ADR-019. Глифы из области частного использования (Private Use Area) сопоставляются, только когда известен их шрифт
+- ADR-030. Полный корпус — второй индекс, собранный тем же конвейером
 
-**Chunking and indexing**
+**Нарезка и индексация**
 
-- ADR-020. Chunks follow headings where the text allows, and never outgrow the model
-- ADR-021. Indexing is incremental because chunk ids come from content
+- ADR-020. Чанки идут по заголовкам, где текст это позволяет, и никогда не перерастают модель
+- ADR-021. Индексация инкрементальная, потому что id чанков выводятся из содержимого
 
-**Retrieval**
+**Поиск**
 
-- ADR-022. BM25 is written out, and stems each word in its own language
-- ADR-023. Hybrid search fuses by rank; the reranker re-reads a shortlist
+- ADR-022. BM25 написан самостоятельно и стеммит каждое слово на его собственном языке
+- ADR-023. Гибридный поиск объединяет по рангу; реранкер перечитывает короткий список
 
-**Answering**
+**Ответ**
 
-- ADR-024. The prompt is measured with the model's own tokenizer before it is sent
-- ADR-025. The model cites a label; the code checks it and writes the citation
-- ADR-026. Ten fragments per answer; no fragments, no model
+- ADR-024. Промпт измеряется собственным токенизатором модели до отправки
+- ADR-025. Модель ссылается на метку; код её проверяет и пишет цитату
+- ADR-026. Десять фрагментов на ответ; нет фрагментов — нет вызова модели
 
-**Evaluation**
+**Оценка**
 
-- ADR-028. The judge rules on facts it can check, in JSON, twice per answer
-- ADR-029. Models are compared alone, on the same fragments, by a rule fixed in advance
+- ADR-028. Судья выносит решения о фактах, которые может проверить, в JSON, дважды на ответ
+- ADR-029. Модели сравниваются поодиночке, на одних и тех же фрагментах, по заранее зафиксированному правилу
 
-**The agent**
+**Агент**
 
-- ADR-031. The agent is a small graph of plain functions; LangGraph holds the edges
+- ADR-031. Агент — небольшой граф из обычных функций; LangGraph держит рёбра
 
-**The service and its packaging**
+**Сервис и его упаковка**
 
-- ADR-006. Health probes are injected as callables, and run concurrently
-- ADR-027. One pipeline behind the CLI, `/ask` and a Server-Sent Events stream
-- ADR-032. The container answers too: CPU search, hybrid only, the index mounted
-
----
-
-## ADR-001. Python 3.14 rather than the 3.12 named in CLAUDE.md
-
-**Context.** CLAUDE.md specifies Python 3.12. No 3.12 was installed on the
-machine, so the version had to be chosen deliberately rather than inherited.
-The stack includes `torch`, `sentence-transformers` and `docling`, which lag
-behind new Python releases, so "newest" is not automatically safe.
-
-**Decision.** Python 3.14.7, installed and pinned through uv (`.python-version`).
-
-**How it was checked, rather than assumed.** The full dependency set resolved
-under 3.14 to 139 packages. Of those, 100 are pure Python and 37 ship
-`cp314` wheels for macOS arm64. Exactly two had no such wheel:
-`antlr4-python3-runtime` (source distribution only) and `multiprocess` (mac
-wheels for other Python versions only). Both were installed into a scratch
-3.14 environment and built from source in seconds, with the Xcode command line
-tools already present. Nothing in the stack blocks 3.14.
-
-**Alternatives rejected.**
-- *3.12, as written in CLAUDE.md.* Would have to be downloaded anyway, and
-  starting a new project two releases behind buys nothing here.
-- *3.15.* Only a release candidate at the time of writing.
+- ADR-006. Проверки здоровья внедряются как вызываемые объекты и выполняются параллельно
+- ADR-027. Один конвейер за CLI, `/ask` и потоком Server-Sent Events
+- ADR-032. Контейнер тоже отвечает: поиск на CPU, только гибридный режим, индекс монтируется
 
 ---
 
-## ADR-002. Sampling parameters live in configuration, not in the Modelfile
+## ADR-001. Python 3.14, а не 3.12, указанный в CLAUDE.md
 
-**Context.** `qwen3.5:9b` carries its own defaults: `temperature 1`,
-`top_p 0.95`, `top_k 20` and `presence_penalty 1.5`. These are inherited by
-`qwen3.5-9b-8k`. A presence penalty punishes tokens that have already appeared,
-and this service is required to repeat a citation after *every* claim, so a
-penalty of 1.5 works directly against the output format. A temperature of 1 is
-also wrong for extractive answering.
+**Контекст.** В CLAUDE.md указан Python 3.12. На машине 3.12 установлен не был,
+так что версию нужно было выбрать осознанно, а не унаследовать. В стеке есть
+`torch`, `sentence-transformers` и `docling`, которые отстают от новых релизов
+Python, поэтому «самая новая» не означает автоматически «безопасная».
 
-**Decision.** Sampling is set per request from `Settings`
-(`LLM_TEMPERATURE=0.0`, `LLM_TOP_P=1.0`, `LLM_PRESENCE_PENALTY=0.0`). The
-Modelfile carries only `num_ctx`.
+**Решение.** Python 3.14.7, установленный и закреплённый через uv
+(`.python-version`).
 
-**Why not the Modelfile.** Phase 4 compares several models. If each model's
-Modelfile carried its own sampling, the comparison would confound the model
-with its sampling and the result would not support the choice it is meant to
-justify. One knob, set identically for every candidate, keeps that comparison
-honest.
+**Как это проверено, а не предположено.** Полный набор зависимостей под 3.14
+разрешился в 139 пакетов. Из них 100 — чистый Python, у 37 есть wheel `cp314`
+для macOS arm64. Ровно у двух такого wheel не было: `antlr4-python3-runtime`
+(только исходники) и `multiprocess` (wheel для mac есть только под другие
+версии Python). Оба были установлены во временное окружение 3.14 и собрались из
+исходников за секунды — Xcode Command Line Tools уже стояли. Ничто в стеке не
+блокирует 3.14.
 
-**Cost.** Every call site must pass the parameters; forgetting one silently
-reinstates the model's own defaults. Mitigated by building the request in one
-place in `generation/`.
+**Отвергнутые альтернативы.**
+- *3.12, как написано в CLAUDE.md.* Её всё равно пришлось бы скачивать, а начинать
+  новый проект с отставанием на два релиза здесь ничего не даёт.
+- *3.15.* На момент написания — только release candidate.
 
 ---
 
-## ADR-003. Thinking is switched off with `reasoning_effort: "none"`
+## ADR-002. Параметры сэмплирования живут в конфигурации, а не в Modelfile
 
-**Context.** `ollama show` reports that the model has a `thinking` capability
-whose levels are `false, true` and whose **default is `true`**. Reasoning
-traces cost tokens out of an 8192-token budget and are not wanted in a RAG
-answer. The question was how to switch it off over the OpenAI-compatible
-endpoint specifically, not over Ollama's native API.
+**Контекст.** У `qwen3.5:9b` есть свои значения по умолчанию: `temperature 1`,
+`top_p 0.95`, `top_k 20` и `presence_penalty 1.5`. Их наследует
+`qwen3.5-9b-8k`. Presence penalty штрафует токены, которые уже встречались, а
+этот сервис обязан повторять цитату после *каждого* утверждения, так что штраф
+1.5 работает прямо против формата вывода. Температура 1 тоже не подходит для
+извлекающих ответов.
 
-**Decision.** Send `reasoning_effort: "none"` in the request body;
-`LLM_REASONING_EFFORT` carries it.
+**Решение.** Сэмплирование задаётся в каждом запросе из `Settings`
+(`LLM_TEMPERATURE=0.0`, `LLM_TOP_P=1.0`, `LLM_PRESENCE_PENALTY=0.0`). Modelfile
+содержит только `num_ctx`.
 
-**Evidence.** Ollama's OpenAI-compatibility documentation lists
-`reasoning_effort` among the supported fields and states that boolean-only
-models map `"none"` to `false`. Measured on one identical question:
+**Почему не в Modelfile.** В фазе 4 сравниваются несколько моделей. Если бы
+Modelfile каждой модели нёс своё сэмплирование, сравнение смешало бы модель с
+её сэмплированием, и результат не подкреплял бы выбор, ради которого делается.
+Одна ручка, выставленная одинаково для всех кандидатов, сохраняет сравнение
+честным.
 
-| Request | `message.reasoning` | completion tokens |
+**Цена.** Каждое место вызова обязано передавать параметры; забытый параметр
+молча возвращает собственные значения модели. Смягчено тем, что запрос
+собирается в одном месте в `generation/`.
+
+---
+
+## ADR-003. Режим рассуждений (thinking) выключается через `reasoning_effort: "none"`
+
+**Контекст.** `ollama show` сообщает, что у модели есть возможность `thinking`
+с уровнями `false, true` и **по умолчанию `true`**. Следы рассуждений тратят
+токены из бюджета в 8192 и в RAG-ответе не нужны. Вопрос был в том, как
+выключить их именно через OpenAI-совместимый endpoint, а не через нативный API
+Ollama.
+
+**Решение.** Отправлять в теле запроса `reasoning_effort: "none"`; значение
+берётся из `LLM_REASONING_EFFORT`.
+
+**Подтверждение.** Документация Ollama по совместимости с OpenAI указывает
+`reasoning_effort` среди поддерживаемых полей и говорит, что у моделей только с
+булевым режимом `"none"` отображается в `false`. Замер на одном и том же
+вопросе:
+
+| Запрос | `message.reasoning` | токенов в ответе |
 |---|---|---|
-| no parameter | full reasoning trace | 205 |
+| без параметра | полный след рассуждений | 205 |
 | `reasoning_effort: "none"` | `null` | 3 |
 
-**Alternatives rejected.**
-- *`PARAMETER think false` in the Modelfile.* Not a documented Modelfile
-  parameter, and it would bake the choice into the model, which ADR-002 avoids.
-- *`--think=false` on the CLI.* Does not apply; the service speaks HTTP.
+**Отвергнутые альтернативы.**
+- *`PARAMETER think false` в Modelfile.* Это не документированный параметр
+  Modelfile, и он зашил бы выбор в модель, чего ADR-002 избегает.
+- *`--think=false` в CLI.* Неприменимо: сервис общается по HTTP.
 
 ---
 
-## ADR-004. `num_ctx 8192` is pinned in `ollama/Modelfile`
+## ADR-004. `num_ctx 8192` зафиксирован в `ollama/Modelfile`
 
-**Context.** Ollama defaults to a 4096-token context. A RAG prompt with
-retrieved chunks exceeds that, and the overflow is dropped **silently** — no
-error, just a quietly truncated prompt and a worse answer.
+**Контекст.** По умолчанию у Ollama контекст 4096 токенов. RAG-промпт с
+найденными чанками больше, и лишнее отбрасывается **молча** — без ошибки,
+просто промпт тихо обрезается, а ответ становится хуже.
 
-**Decision.** `ollama/Modelfile` sets `PARAMETER num_ctx 8192`, and the model
-is built with `ollama create qwen3.5-9b-8k -f ollama/Modelfile`.
+**Решение.** `ollama/Modelfile` задаёт `PARAMETER num_ctx 8192`, а модель
+собирается командой `ollama create qwen3.5-9b-8k -f ollama/Modelfile`.
 
-**Why in the Modelfile, when ADR-002 argues the opposite for sampling.** The
-context window is a property of how the model is *loaded*, not of an individual
-request: it decides how much memory the server reserves. Keeping it in the
-Modelfile means it survives restarts and reproduces for anyone who clones the
-repository. `LLM_CONTEXT_TOKENS` mirrors the same number so that the prompt
-builder plans against the real window; the two must be changed together.
+**Почему в Modelfile, если ADR-002 доказывает обратное для сэмплирования.**
+Окно контекста — свойство того, как модель *загружается*, а не отдельного
+запроса: оно определяет, сколько памяти резервирует сервер. Если держать его в
+Modelfile, оно переживает перезапуски и воспроизводится у любого, кто склонирует
+репозиторий. `LLM_CONTEXT_TOKENS` повторяет то же число, чтобы сборщик промпта
+планировал под реальное окно; менять их нужно вместе.
 
-**Verified.** `ollama ps` reports `CONTEXT 8192` and `100% GPU`, 5.5 GB
-resident.
+**Проверено.** `ollama ps` показывает `CONTEXT 8192` и `100% GPU`, 5,5 ГБ в
+памяти.
 
 ---
 
-## ADR-005. Course materials are laid out as `data/raw/<slug>/sem<N>/`
+## ADR-005. Учебные материалы раскладываются как `data/raw/<slug>/sem<N>/`
 
-**Context.** CLAUDE.md describes `data/raw/<course_slug>/...`. In practice the
-directory held 30 files loose at the top level (first year, first semester) and
-a `nsumedia/` tree organised as `<year> курс/<N> семестр/<Subject>/`. Nothing
-could attribute a file to a course automatically.
+**Контекст.** CLAUDE.md описывает `data/raw/<course_slug>/...`. На практике в
+папке лежали 30 файлов прямо в корне (первый курс, первый семестр) и дерево
+`nsumedia/`, организованное как `<year> курс/<N> семестр/<Subject>/`.
+Автоматически отнести файл к курсу было нечем.
 
-**Decision.** One directory per subject, semester as a sub-directory:
-`data/raw/matan/sem1/...`. 170 files, 23 subjects. The semester therefore comes
-out of the path as metadata for free, and a subject taught across several
-semesters stays a single retrieval filter.
+**Решение.** Одна папка на предмет, семестр — подпапка:
+`data/raw/matan/sem1/...`. 170 файлов, 23 предмета. Семестр, таким образом,
+бесплатно достаётся из пути как метаданные, а предмет, который читается
+несколько семестров, остаётся одним фильтром поиска.
 
-**Slugs** are transliterations of the short names the author already uses
-(`matan`, `matlog`, `diskretka`, `tvims`), because they are typed as a CLI flag
-and several of them — ДГМА, ЛОП, МТК, ОТУ, ИСИС — have no meaningful English
-equivalent to translate to. One exception: ОСи is `os`, matching the example in
+**Слаги** — транслитерация коротких названий, которыми автор уже пользуется
+(`matan`, `matlog`, `diskretka`, `tvims`), потому что их набирают как флаг CLI, а
+у некоторых — ДГМА, ЛОП, МТК, ОТУ, ИСИС — нет осмысленного английского
+эквивалента для перевода. Одно исключение: ОСи — это `os`, как в примере из
 CLAUDE.md.
 
-**Alternatives rejected.**
-- *A `file → course` mapping in `courses.yaml`.* Leaves the mapping to be
-  maintained by hand and lets it drift from the filesystem.
-- *A directory per subject-and-semester (`matan-sem1`).* Splits one subject
-  across several filters, so a question about calculus would have to be asked
-  twice.
+**Отвергнутые альтернативы.**
+- *Соответствие `файл → курс` в `courses.yaml`.* Его пришлось бы поддерживать
+  вручную, и оно расходилось бы с файловой системой.
+- *Папка на пару «предмет + семестр» (`matan-sem1`).* Разбивает один предмет на
+  несколько фильтров, и вопрос по матанализу пришлось бы задавать дважды.
 
-**Reversible.** `data/.reorg-undo.sh` restores the original layout.
-
----
-
-## ADR-006. Health probes are injected as callables, and run concurrently
-
-**Context.** `/health` reports on Qdrant and on the LLM endpoint. FastAPI
-resolves dependencies sequentially, so a dependency that returns an
-*already-awaited* probe result would make the two probes run one after the
-other — two slow dependencies would add up.
-
-**Decision.** `get_qdrant_probe` and `get_llm_probe` return async callables.
-The endpoint runs them with `asyncio.gather`. Each probe is wrapped in
-`measure()`, which applies a per-dependency deadline and converts any exception
-into a status rather than a 500.
-
-**Consequences.** Tests override one factory to inject a fake probe, so the two
-failure axes can be exercised independently and without a network. A test
-asserts the wall-clock time of two slow probes, which would fail if the
-concurrency regressed.
-
-**Why 503 and not 200.** A health endpoint that answers 200 while a dependency
-is down is worse than no health endpoint. The body still names the component
-that failed and how long each probe took.
+**Обратимо.** `data/.reorg-undo.sh` восстанавливает исходную раскладку.
 
 ---
 
-## ADR-007. A document's text layer is judged by characters per sampled page
+## ADR-006. Проверки здоровья внедряются как вызываемые объекты и выполняются параллельно
 
-**Context.** Routing decides everything downstream: a file sent to
-`pymupdf4llm` when it is really a scan produces empty chunks, and a file sent
-to OCR when it has a perfectly good text layer costs two seconds a page for
-nothing. The corpus has 169 PDFs and no metadata saying which is which.
+**Контекст.** `/health` сообщает о состоянии Qdrant и LLM-endpoint. FastAPI
+разрешает зависимости последовательно, поэтому зависимость, возвращающая *уже
+дождавшийся* результат проверки, заставила бы две проверки идти одна за другой —
+две медленные зависимости сложились бы.
 
-**Decision.** Extract text from up to 12 pages spread through the document,
-skipping the first two as likely front matter, and divide by the number of
-pages sampled. Above 500 characters per page the layer is `good`, below 80 it
-is `none`, and in between it is `weak`.
+**Решение.** `get_qdrant_probe` и `get_llm_probe` возвращают асинхронные
+вызываемые объекты. Endpoint запускает их через `asyncio.gather`. Каждая
+проверка обёрнута в `measure()`, которая задаёт свой дедлайн на каждую
+зависимость и превращает любое исключение в статус, а не в 500.
 
-**Why those numbers.** A page of typeset prose in this corpus holds 1500-3000
-characters, so 500 is comfortably below any real page of text. A scan whose
-only text is a watermark or a stamped page number lands in the tens. The band
-between them is the dangerous one - a partial or broken layer - and it is
-called out separately rather than being forced into one of the two verdicts.
-Measured on the corpus: 97 files `good`, 4 `weak`, 43 `none`.
+**Следствия.** Тесты подменяют одну фабрику, чтобы внедрить фейковую проверку,
+поэтому два вида отказов можно проверять независимо и без сети. Один тест
+проверяет общее время двух медленных проверок и упадёт, если параллельность
+сломается.
 
-**Sampling rather than reading everything** keeps the pass at eleven seconds
-for 2.1 GB, which matters because it is re-run after every change. Front
-matter is skipped only when the document is longer than four pages, so a
-three-page handout is not judged on a single page.
-
-**Alternative rejected.** *Looking for embedded images instead.* Many
-born-digital files are full of figures, and some scans embed their page as a
-single image with an invisible OCR layer already present. Character density
-measures the thing that actually matters.
+**Почему 503, а не 200.** Health-endpoint, который отвечает 200, когда
+зависимость лежит, хуже, чем отсутствие health-endpoint. Тело ответа при этом
+называет упавший компонент и время каждой проверки.
 
 ---
 
-## ADR-008. The MVP is ranked on "usable pages", not on total pages
+## ADR-007. Текстовый слой документа оценивается по числу символов на выборочную страницу
 
-**Context.** Phases 1b-4 run on a subset of the corpus. The first ranking used
-each subject's share of readable pages, and proposed `evm` - which is 5594
-pages of Intel's English architecture manual, exactly the kind of document
-CLAUDE.md warns will crowd out everything else in a top-k result.
+**Контекст.** От маршрутизации зависит всё дальнейшее: файл, отправленный в
+`pymupdf4llm`, хотя на деле это скан, даёт пустые чанки, а файл, отправленный в
+OCR при вполне хорошем текстовом слое, стоит две секунды на страницу впустую. В
+корпусе 169 PDF и нет метаданных о том, какой из них какой.
 
-**Decision.** Rank on `usable_pages`: pages in files that read without OCR,
-are not a duplicate copy, are under 1500 pages, and are in Russian. Require at
-least 2 files and 300 pages, and no more than 6000. Among survivors, prefer
-subjects where a large share of the material passes the filter and where the
-pages are spread over several documents.
+**Решение.** Извлечь текст максимум с 12 страниц, распределённых по документу,
+пропустив первые две как вероятное оформление (титул, оглавление), и разделить
+на число выбранных страниц. Выше 500 символов на страницу слой `good`, ниже
+80 — `none`, между ними — `weak`.
 
-**Why.** The number being ranked is now the number of pages an index built
-today would actually contain. A subject that is mostly English reference
-manual scores zero rather than first, which is the correct answer: it would
-cost the most to index and answer none of the Russian evaluation questions.
+**Почему такие числа.** Страница свёрстанного текста в этом корпусе содержит
+1500–3000 символов, так что 500 — с запасом ниже любой настоящей текстовой
+страницы. Скан, где весь текст — водяной знак или проштампованный номер
+страницы, попадает в десятки. Полоса между ними — опасная: частичный или
+битый слой, — и она выделяется отдельно, а не загоняется в один из двух
+вердиктов. Замер на корпусе: 97 файлов `good`, 4 `weak`, 43 `none`.
 
-**Consequence.** The proposal is advisory. `courses.yaml` carries an `include`
-flag per subject and per file, the author sets them, and the generator
-preserves whatever they set.
+**Выборка вместо чтения всего** удерживает проход в одиннадцати секундах на
+2,1 ГБ, что важно, потому что он перезапускается после каждого изменения.
+Начальные страницы пропускаются, только если документ длиннее четырёх страниц,
+чтобы трёхстраничную раздатку не оценивали по одной странице.
 
----
-
-## ADR-009. OCR runs through RapidOCR with the language code `iso:ru`
-
-**Context.** The OCR bill had to be measured, not guessed, and docling offers
-several engines. Two things were found by trying rather than by reading:
-docling installs RapidOCR by default, and RapidOCR rejects a bare `ru`.
-
-**Decision.** `iso:ru`, on the onnxruntime backend, one language per pass.
-
-**What the engine actually said.** Russian exists in RapidOCR's onnxruntime
-backend but not in its torch backend. Asking for `["iso:ru", "iso:en"]` does
-not fail - the engine keeps the first language and silently drops the rest, so
-a two-language request would have been measured under a misleading label. The
-request is therefore Russian only, and English-only scans need their own pass
-in phase 4.5.
-
-**Measured.** 2.0 seconds per page (median of 4 pages, 1.9-2.8 s), about 1360
-characters recovered per page, after a 6-second one-off model load. Over the
-20 040 pages that need OCR that is roughly 11 hours single-threaded - which is
-the whole reason phases 1b-4 run on the MVP subset instead.
-
-**Not evaluated yet.** `ocrmac`, which would use the macOS Vision framework
-and could be faster on this machine, is not installed. Worth measuring in
-phase 4.5 before committing eleven hours.
+**Отвергнутая альтернатива.** *Искать встроенные изображения.* Многие изначально
+цифровые файлы полны рисунков, а некоторые сканы хранят страницу одним
+изображением с уже наложенным невидимым OCR-слоем. Плотность символов измеряет
+то, что на самом деле важно.
 
 ---
 
-## ADR-010. `courses.yaml` is regenerated without touching the author's edits
+## ADR-008. Курсы для MVP ранжируются по «пригодным страницам», а не по общему числу страниц
 
-**Context.** The file mixes two kinds of content: measurements that go stale
-after every corpus change, and decisions only the author can make - the course
-titles that appear in citations, and the `include` flags that define the MVP.
-Regenerating it naively would wipe the decisions; never regenerating it would
-leave the measurements wrong.
+**Контекст.** Фазы 1b–4 работают на подмножестве корпуса. Первое ранжирование
+использовало долю читаемых страниц предмета и предложило `evm` — а это 5594
+страницы англоязычного руководства Intel по архитектуре, ровно тот тип
+документа, который, как предупреждает CLAUDE.md, вытеснит всё остальное из
+выдачи top-k.
 
-**Decision.** The generator reads the existing file first. Course titles are
-lifted as **raw text lines** rather than through a YAML round-trip, because
-the author writes notes after them (`# ПРОВЕРЬ точное название`) and a
-round-trip drops every comment. `include` values are read as YAML and written
-back. Everything else is regenerated.
+**Решение.** Ранжировать по `usable_pages`: страницам в файлах, которые читаются
+без OCR, не являются копией-дубликатом, короче 1500 страниц и написаны
+по-русски. Требовать минимум 2 файла и 300 страниц и не больше 6000. Среди
+прошедших предпочитать предметы, у которых большая доля материалов проходит
+фильтр и страницы распределены по нескольким документам.
 
-**Consequence.** Running the inventory twice produces byte-identical files,
-and a flag the author flipped survives the next run. Both are covered by
-tests, because the failure mode - silently discarding someone's work - is not
-one you notice by looking at the output.
+**Почему.** Ранжируемое число теперь — это число страниц, которые реально
+оказались бы в индексе, собранном сегодня. Предмет, состоящий в основном из
+английского справочника, получает ноль, а не первое место, и это правильный
+ответ: его индексация стоила бы дороже всего и не дала бы ответа ни на один
+русский вопрос из оценки.
 
-**Alternative rejected.** *`ruamel.yaml` for comment-preserving round-trips.*
-A dependency, and a heavier mechanism than the one thing that needs
-preserving here.
-
----
-
-## ADR-011. A page number is the 1-based position of the page in the PDF file
-
-**Context.** Citations say `с. 34`, and the evaluation matches retrieved pages
-against the pages the author marks as gold. Both break unless everyone means the
-same page. A book has up to three candidates: the page's position in the file,
-the label the PDF may define for it (roman numerals for front matter, say), and
-the number printed on the page itself - which is offset from the position
-whenever a cover and a table of contents come first.
-
-**Decision.** The canonical number is the position in the file, counting from
-1 - what a viewer's "go to page" field takes. It is stored as `number` on every
-page record. A label the PDF defines is stored alongside as `label`; the
-printed number is not recoverable in general and is not used.
-
-**Measured.** Of the 33 MVP files, 3 define page labels, and in none of them
-does the label differ from the position at mid-document. Labels are therefore
-rare here, and the printed number is the one that would mislead: CLAUDE.md now
-tells the author to take gold pages from the viewer's page field.
-
-**Alternatives rejected.** *Printed page numbers* - only a guess could extract
-them, from whatever text happens to sit in the running header. *PDF labels* -
-absent from 30 of 33 files.
+**Следствие.** Предложение носит рекомендательный характер. `courses.yaml`
+содержит флаг `include` для каждого предмета и каждого файла, автор их
+выставляет, а генератор сохраняет то, что он выставил.
 
 ---
 
-## ADR-012. PDFs are parsed by pymupdf4llm's layout model, with two repairs
+## ADR-009. OCR идёт через RapidOCR с кодом языка `iso:ru`
 
-**Context.** `pymupdf4llm` 1.28 ships two renderers: a layout path, where an
-ONNX model bundled in the wheel classifies every region of a page, and the
-older path, which infers headings from font sizes or from the PDF outline. They
-were compared on the same 25 mid-document pages of three MVP books (operating
-systems, probability, calculus), and on two pages of C listings:
+**Контекст.** Стоимость OCR нужно было измерить, а не угадать, а docling
+предлагает несколько движков. Две вещи выяснились пробой, а не чтением
+документации: docling по умолчанию ставит RapidOCR, а RapidOCR отвергает голое
+`ru`.
 
-| | older renderer | layout model |
+**Решение.** `iso:ru` на бэкенде onnxruntime, один язык за проход.
+
+**Что на самом деле сказал движок.** Русский есть в бэкенде onnxruntime у
+RapidOCR, но нет в его бэкенде torch. Запрос `["iso:ru", "iso:en"]` не падает —
+движок берёт первый язык и молча отбрасывает остальные, так что двуязычный
+запрос был бы измерен под вводящей в заблуждение меткой. Поэтому запрос только
+русский, а сканам только на английском нужен свой проход в фазе 4.5.
+
+**Замер.** 2,0 секунды на страницу (медиана по 4 страницам, 1,9–2,8 с), около
+1360 восстановленных символов на страницу, после разовой загрузки модели за
+6 секунд. На 20 040 страницах, которым нужен OCR, это примерно 11 часов в один
+поток — именно поэтому фазы 1b–4 работают на подмножестве MVP.
+
+**Пока не оценено.** `ocrmac`, который использовал бы фреймворк Vision в macOS и
+мог бы быть быстрее на этой машине, не установлен. Стоит измерить его в фазе 4.5,
+прежде чем тратить одиннадцать часов.
+
+---
+
+## ADR-010. `courses.yaml` перегенерируется, не трогая правки автора
+
+**Контекст.** В файле смешаны два вида содержимого: замеры, которые устаревают
+после каждого изменения корпуса, и решения, которые может принять только
+автор, — названия курсов, которые попадают в цитаты, и флаги `include`, которые
+определяют MVP. Наивная перегенерация стёрла бы решения; отказ от
+перегенерации оставил бы замеры неверными.
+
+**Решение.** Генератор сначала читает существующий файл. Названия курсов
+переносятся как **сырые строки текста**, а не через цикл «разобрать YAML →
+записать YAML», потому что автор пишет после них заметки
+(`# ПРОВЕРЬ точное название`), а такой цикл теряет все комментарии. Значения
+`include` читаются как YAML и записываются обратно. Всё остальное
+генерируется заново.
+
+**Следствие.** Два запуска инвентаризации подряд дают побайтово одинаковые
+файлы, а флаг, который переключил автор, переживает следующий запуск. Оба
+свойства покрыты тестами, потому что такую поломку — молча выброшенную чужую
+работу — глядя на вывод, не заметишь.
+
+**Отвергнутая альтернатива.** *`ruamel.yaml` для сохранения комментариев.* Это
+зависимость и более тяжёлый механизм, чем нужно для единственной вещи, которую
+здесь надо сохранить.
+
+---
+
+## ADR-011. Номер страницы — её позиция в PDF-файле, начиная с 1
+
+**Контекст.** Цитаты пишут `с. 34`, а оценка сверяет найденные страницы со
+страницами, которые автор помечает как эталонные. И то и другое ломается, если
+все не имеют в виду одну и ту же страницу. У книги до трёх кандидатов: позиция
+страницы в файле, метка, которую PDF может для неё задать (скажем, римские
+цифры для вступительной части), и номер, напечатанный на самой странице, —
+который смещён относительно позиции всякий раз, когда в начале идут обложка и
+оглавление.
+
+**Решение.** Канонический номер — позиция в файле, считая с 1: то, что
+принимает поле «перейти к странице» в просмотрщике. Он хранится как `number` в
+каждой записи о странице. Метка, заданная в PDF, хранится рядом как `label`;
+напечатанный номер в общем случае не восстановить, и он не используется.
+
+**Замер.** Из 33 файлов MVP метки страниц задают 3, и ни в одном из них метка
+не отличается от позиции в середине документа. Метки здесь, таким образом,
+редкость, а вводить в заблуждение будет как раз напечатанный номер: CLAUDE.md
+теперь говорит автору брать эталонные страницы из поля страницы в
+просмотрщике.
+
+**Отвергнутые альтернативы.** *Напечатанные номера страниц* — извлечь их можно
+только угадыванием, из того текста, который окажется в колонтитуле. *Метки PDF* —
+отсутствуют в 30 файлах из 33.
+
+---
+
+## ADR-012. PDF разбираются layout-моделью pymupdf4llm с двумя доработками
+
+**Контекст.** `pymupdf4llm` 1.28 поставляется с двумя рендерерами: путь через
+layout-модель, где ONNX-модель из wheel классифицирует каждую область страницы,
+и старый путь, который выводит заголовки из размеров шрифта или из оглавления
+PDF. Их сравнили на одних и тех же 25 страницах из середины трёх книг MVP
+(операционные системы, теория вероятностей, матанализ) и на двух страницах с
+листингами на C:
+
+| | старый рендерер | layout-модель |
 |---|---|---|
-| headings found | 1, 0, 0 | 4, 15, 5 |
-| running headers | left in the text | dropped |
-| paragraphs | broken into short lines | whole |
-| display formulas | one symbol per line, with `��` | dropped entirely |
-| code listings | fenced, line breaks kept | flattened into one 651-char line |
-| speed, warm | 0.125 s/page | 0.107 s/page |
+| найдено заголовков | 1, 0, 0 | 4, 15, 5 |
+| колонтитулы | остаются в тексте | отброшены |
+| абзацы | разбиты на короткие строки | целые |
+| выносные формулы | по символу на строку, с `��` | выброшены целиком |
+| листинги кода | в блоках кода, переносы строк сохранены | слиты в одну строку на 651 символ |
+| скорость, на прогретом | 0,125 с/стр. | 0,107 с/стр. |
 
-Neither is usable as it stands: one shreds formulas, the other destroys code,
-which CLAUDE.md forbids.
+Ни один не годится как есть: один крошит формулы, другой ломает код, что
+CLAUDE.md запрещает.
 
-**Decision.** The layout model, repaired using the character offset (`pos`) it
-reports for every region of its own output:
+**Решение.** Layout-модель, доработанная с помощью смещения в символах (`pos`),
+которое она сообщает для каждой области своего вывода:
 
-* a `formula` region becomes the marker `[формула]` where the formula stood;
-* a `text` region whose characters are at least 60% monospaced is re-extracted
-  line by line into a fenced block, with indentation recovered from each line's
-  x-coordinate and the width of one character on that listing.
+* область `formula` превращается в маркер `[формула]` на месте формулы;
+* область `text`, в которой хотя бы 60% символов моноширинные, заново
+  извлекается построчно в блок кода, а отступы восстанавливаются по
+  x-координате каждой строки и ширине одного символа в этом листинге.
 
-On the two listing pages this keeps exactly as many `;`-terminated lines as the
-older renderer (8 and 18) and restores indentation, which the older renderer
-lost as well. On a probability page it leaves three `[формула]` markers and no
-false listings.
+На двух страницах с листингами это сохраняет ровно столько строк,
+заканчивающихся на `;`, сколько и старый рендерер (8 и 18), и восстанавливает
+отступы, которые старый рендерер тоже терял. На странице по теории вероятностей
+остаются три маркера `[формула]` и ни одного ложного листинга.
 
-**Why a marker and not the formula's text.** The text layer of a display
-formula is the shredded form above: no retriever can match it and no model can
-read it. The marker keeps the sentence around it intact and lets an answer point
-at the page - "the formula is on p. 82" - which is what a reader needs anyway.
+**Почему маркер, а не текст формулы.** Текстовый слой выносной формулы — это
+крошево из таблицы выше: его не сопоставит ни один поисковик и не прочитает ни
+одна модель. Маркер сохраняет предложение вокруг него целым и позволяет ответу
+указать на страницу — «формула на с. 82», — а читателю в любом случае нужно
+именно это.
 
-**Also decided.** `use_ocr=False`: the layout path OCRs pages it finds empty
-by default, in English. OCR is phase 4.5.
+**Решено также.** `use_ocr=False`: путь через layout по умолчанию прогоняет OCR
+по страницам, которые считает пустыми, причём на английском. OCR — это фаза 4.5.
 
-**Formula regions that are really prose (revision 3).** Comparing output with
-each page's text layer (ADR-018) showed 84 pages with formulas keeping under
-30% of their text, some none. The layout model had labelled whole paragraphs
-- prose with inline maths, a definition, a theorem - as formulas; one such
-region covered 52% of a page and held 50 Russian words, where genuine display
-formulas hold at most a handful ("при", "где"). A formula region with at least
-8 words of four or more letters is now kept as text, exactly as the PDF has
-it, lines joined. 373 regions across the MVP turned out to be prose; 91 000
-non-space characters came back; pages under 30% fell from 84 to 30, and the
-1st percentile of text kept on formula pages rose from 19% to 32%.
+**Области формул, которые на деле текст (ревизия 3).** Сравнение вывода с
+текстовым слоем каждой страницы (ADR-018) показало 84 страницы с формулами,
+сохранившие меньше 30% текста, некоторые — ничего. Layout-модель помечала как
+формулы целые абзацы — текст со строчной математикой, определение, теорему;
+одна такая область занимала 52% страницы и содержала 50 русских слов, тогда как
+настоящие выносные формулы содержат максимум несколько («при», «где»). Область
+формулы, в которой хотя бы 8 слов из четырёх и более букв, теперь сохраняется
+как текст — ровно так, как он есть в PDF, со склеенными строками. По всему MVP
+373 области оказались текстом; вернулось 91 000 непробельных символов; страниц
+ниже 30% стало 30 вместо 84, а 1-й перцентиль сохранённого текста на страницах
+с формулами вырос с 19% до 32%.
 
-The threshold is a trade-off, not a truth: a short sentence of five words set
-inside a formula region is still replaced by the marker. The worst remaining
-page keeps 27% of its text, beside three regions of five words each.
+Порог — компромисс, а не истина: короткое предложение из пяти слов внутри
+области формулы всё равно заменяется маркером. Худшая оставшаяся страница
+сохраняет 27% текста, рядом с тремя областями по пять слов.
 
-**Known limitation, measured.** The monospace test also fires on stray glyphs:
-the three MVP maths courses (4 238 pages) produced 11 "listings", every one a
-single line of at most fourteen letters - a symbol set in a typewriter font. The
-operating-systems books show why no size threshold fixes this: of their 4 254
-listings, 1 817 are single lines, median 23 characters, many of them genuine
-prototypes like `pid_t fork(void);`. Any cut-off that removed the false 11
-would unfence hundreds of real ones. They are left as they are: a one-line
-block is harmless to retrieval and cannot be split by the chunker.
+**Известное ограничение, измерено.** Проверка на моноширинность срабатывает и на
+случайные глифы: три математических курса MVP (4 238 страниц) дали 11
+«листингов», каждый — одна строка максимум из четырнадцати букв, символ,
+набранный машинописным шрифтом. Книги по операционным системам показывают,
+почему порог по размеру это не исправит: из их 4 254 листингов 1 817 — одна
+строка, медиана 23 символа, многие — настоящие прототипы вроде
+`pid_t fork(void);`. Любая отсечка, которая убрала бы ложные 11, лишила бы
+блоков кода сотни настоящих. Они оставлены как есть: однострочный блок
+безвреден для поиска, и нарезка на чанки его не разрежет.
 
-**Performance, measured.** The first full run took 30 minutes, not the 15
-expected, and four books accounted for most of it at 0.8-1.4 s per page. The
-repair was the cause, not the layout model: `get_text("dict")` returns every
-image's pixels by default, and those four are scans with a full-page picture
-(1772x2598 px and similar), so each region check decoded the whole page - 80 to
-150 ms, up to 17 times per page. Extracting without image blocks
-(`TEXTFLAGS_DICT & ~TEXT_PRESERVE_IMAGES`) costs 6 ms and returns identical
-lines, since image blocks carry none; the repair step fell from 1.35 to 0.013
-s per page. That the output is unchanged was checked on the whole corpus, not
-a sample: every `raw.jsonl` was saved, everything re-parsed with `--force`,
-and the files compared byte for byte.
+**Производительность, измерено.** Первый полный прогон занял 30 минут вместо
+ожидаемых 15, и большую часть времени съели четыре книги — по 0,8–1,4 с на
+страницу. Виновата была доработка, а не layout-модель: `get_text("dict")` по
+умолчанию возвращает пиксели каждого изображения, а эти четыре — сканы с
+картинкой во всю страницу (1772x2598 пикселей и подобные), так что каждая
+проверка области декодировала всю страницу — от 80 до 150 мс, до 17 раз на
+страницу. Извлечение без блоков изображений
+(`TEXTFLAGS_DICT & ~TEXT_PRESERVE_IMAGES`) стоит 6 мс и возвращает те же
+строки, поскольку в блоках изображений строк нет; шаг доработки ускорился с
+1,35 до 0,013 с на страницу. То, что вывод не изменился, проверено на всём
+корпусе, а не на выборке: все `raw.jsonl` были сохранены, всё перепарсено с
+`--force`, и файлы сравнены побайтово.
 
-**Consequence.** `pymupdf4llm` moves to the default dependencies: parsing is
-core, and its tests must run in CI. The layout models (about 50 MB of ONNX)
-ship inside the wheel and make no network calls, so the tests stay offline.
-
----
-
-## ADR-013. The parse cache is keyed by content hash and parser version; cleaning is never cached
-
-**Context.** Parsing the MVP takes minutes; re-running it on every change to
-the cleaning rules would make those rules expensive to iterate on. CLAUDE.md
-asks for a cache keyed by the sha256 of the source.
-
-**Decision.** `data/parsed/<sha256>/` holds `raw.jsonl` - the parser's output -
-and `meta.json`, which records the parser key (`pymupdf4llm-layout/<version>/
-r<PARSER_REVISION>`). A folder is trusted only if the key matches. Cleaning
-reads `raw.jsonl` and is re-done on every run, writing `pages.jsonl` (for phase
-1c) and `document.md` (for a person to read).
-
-**Details that matter.**
-* The key covers the library version and our own revision number, so an upgrade
-  or a change to the repairs re-parses once, automatically.
-* Files are written to a temporary name and renamed, and `meta.json` is written
-  last: an interrupted run leaves a folder without `meta.json`, which the next
-  run parses again rather than trusting half a file. A test covers this.
-* Keyed by content, a duplicate copy is never parsed twice, and moving a file
-  does not invalidate its cache.
-
-**Alternative rejected.** *Caching the cleaned output too.* It would need its
-own invalidation, and cleaning 10 000 pages takes seconds.
+**Следствие.** `pymupdf4llm` переезжает в зависимости по умолчанию: парсинг —
+это ядро, и его тесты должны идти в CI. Layout-модели (около 50 МБ ONNX)
+поставляются внутри wheel и не ходят в сеть, так что тесты остаются офлайн.
 
 ---
 
-## ADR-014. Two parse processes, not four
+## ADR-013. Ключ кэша парсинга — хеш содержимого и версия парсера; очистка никогда не кэшируется
 
-**Context.** Parsing is CPU-bound and files are independent, so it runs in a
-process pool. The obvious size - one process per spare core - was measured,
-not assumed, on the 718 pages of the probability course:
+**Контекст.** Парсинг MVP занимает минуты; перезапускать его при каждом
+изменении правил очистки — значит сделать итерации по этим правилам дорогими.
+CLAUDE.md требует кэш с ключом по sha256 исходника.
 
-| processes | wall time | CPU time |
+**Решение.** В `data/parsed/<sha256>/` лежат `raw.jsonl` — вывод парсера — и
+`meta.json` с ключом парсера (`pymupdf4llm-layout/<version>/r<PARSER_REVISION>`).
+Папке доверяют, только если ключ совпадает. Очистка читает `raw.jsonl` и
+выполняется заново при каждом запуске, записывая `pages.jsonl` (для фазы 1c) и
+`document.md` (чтобы читать человеку).
+
+**Важные детали.**
+* Ключ включает версию библиотеки и наш собственный номер ревизии, поэтому
+  обновление или изменение доработок автоматически вызывает один повторный
+  парсинг.
+* Файлы пишутся под временным именем и переименовываются, а `meta.json`
+  пишется последним: прерванный запуск оставляет папку без `meta.json`, и
+  следующий запуск парсит её заново, а не доверяет половине файла. Это покрыто
+  тестом.
+* При ключе по содержимому копия-дубликат никогда не парсится дважды, а перенос
+  файла не инвалидирует его кэш.
+
+**Отвергнутая альтернатива.** *Кэшировать и очищенный вывод.* Ему понадобилась бы
+своя инвалидация, а очистка 10 000 страниц занимает секунды.
+
+---
+
+## ADR-014. Два процесса парсинга, а не четыре
+
+**Контекст.** Парсинг упирается в CPU, а файлы независимы, поэтому он идёт в
+пуле процессов. Очевидный размер — по процессу на свободное ядро — был измерен,
+а не принят на веру, на 718 страницах курса теории вероятностей:
+
+| процессов | реальное время | процессорное время |
 |---|---|---|
-| 1 | 64 s | 191 s |
-| 2 | **49 s** | 266 s |
-| 4 | 55 s | 362 s |
+| 1 | 64 с | 191 с |
+| 2 | **49 с** | 266 с |
+| 4 | 55 с | 362 с |
 
-A single process already keeps three cores busy: the ONNX runtime inside the
-layout model runs each page on its own thread pool. Four processes fight over
-eight cores and finish later while burning twice the CPU.
+Уже один процесс загружает три ядра: среда выполнения ONNX внутри
+layout-модели обрабатывает каждую страницу в собственном пуле потоков. Четыре
+процесса дерутся за восемь ядер и заканчивают позже, сжигая вдвое больше CPU.
 
-**Decision.** `PARSE_WORKERS=2`. Documents are submitted longest first, so the
-biggest book does not end up running alone while the other process idles.
+**Решение.** `PARSE_WORKERS=2`. Документы отправляются в порядке убывания длины,
+чтобы самая большая книга не досчитывалась в одиночку, пока второй процесс
+простаивает.
 
-**Alternative rejected.** *Capping the ONNX runtime's threads per process.* The
-session is created inside `pymupdf.layout` with no way to pass options through
-`pymupdf4llm`; patching it would break on the next release of either library.
-
----
-
-## ADR-015. The running-header safety net only touches the outermost line, on most pages
-
-**Context.** The layout model drops the running headers and footers it
-recognises - 1016 of them on the probability course. Cleaning adds a second,
-text-based pass for any it misses: a line recurring at a page edge. To make page
-12's header match page 13's, digits are normalised away. Tests on synthetic
-pages showed what that costs: "Задача 12." and "Задача 13." become the same
-line too, and with two edge lines per page, every line of a short page counts
-as an edge.
-
-**Decision.** Only the first and the last non-empty line of a page are
-candidates, and a candidate must recur on at least half the pages - literally
-"most pages", as CLAUDE.md says. Markers, table rows and code fences are never
-candidates.
-
-**Why so strict.** The risk is asymmetric. A missed header leaves a short line
-of noise in one chunk; a removed line of content is information gone for good.
-And the safety net rarely matters: on the probability course the most frequent
-first or last line of any document appears on at most 8% of its pages, so it
-removed nothing - correctly.
+**Отвергнутая альтернатива.** *Ограничить число потоков среды ONNX на процесс.*
+Сессия создаётся внутри `pymupdf.layout`, и передать ей параметры через
+`pymupdf4llm` нельзя; патч сломался бы на следующем релизе любой из двух
+библиотек.
 
 ---
 
-## ADR-016. The primary copy of a duplicate comes from the manifest, and include decisions follow the content
+## ADR-015. Страховка от колонтитулов трогает только крайнюю строку и только на большинстве страниц
 
-**Context.** Phase 1a picked the primary copy of a duplicate by page count and
-path length. CLAUDE.md asks for the nsumedia copy to win. Page count could never
-decide anything anyway - the copies are byte-identical - and the shortest path
-often belongs to a loose book, the one copy with no provenance.
+**Контекст.** Layout-модель отбрасывает колонтитулы, которые распознаёт, — 1016
+штук на курсе теории вероятностей. Очистка добавляет второй, текстовый проход
+для пропущенных: строка, повторяющаяся у края страницы. Чтобы колонтитул
+страницы 12 совпал с колонтитулом страницы 13, цифры нормализуются. Тесты на
+синтетических страницах показали цену: «Задача 12.» и «Задача 13.» тоже
+становятся одной строкой, а при двух краевых строках на страницу каждая строка
+короткой страницы считается краевой.
 
-**Decision.** The primary is the copy the manifest lists, then the earliest
-semester, then the shortest path. `mark_duplicates` therefore runs after the
-manifest is reconciled.
+**Решение.** Кандидаты — только первая и последняя непустая строка страницы, и
+кандидат должен повторяться хотя бы на половине страниц — буквально
+«на большинстве страниц», как сказано в CLAUDE.md. Маркеры, строки таблиц и
+ограничители блоков кода кандидатами не бывают никогда.
 
-**The consequence that needed its own decision.** Fixing the rule moved one
-book's primary from `matan/sem1` (a loose copy) to `matan/sem2` (the manifest
-copy). `courses.yaml` had recorded `include: true` on the old path and `false`
-on the new one - duplicates are always written as `false` - so a naive reading
-would have silently dropped the book from the MVP.
-
-An include decision is therefore read across every copy of the same content:
-since copies are always written as `false`, a `true` on any of them is the
-author's. Both the regeneration of `courses.yaml` and the parse stage's
-selection use this rule. After the fix the MVP held the same 33 documents,
-with that one attributed to its manifest copy. A test replays exactly this
-sequence.
+**Почему так строго.** Риск несимметричен. Пропущенный колонтитул оставляет
+короткую строку шума в одном чанке; удалённая строка содержимого — информация,
+потерянная навсегда. И страховка редко бывает нужна: на курсе теории
+вероятностей самая частая первая или последняя строка любого документа
+встречается максимум на 8% его страниц, так что она ничего не удалила — и
+правильно.
 
 ---
 
-## ADR-017. Where a text layer came from is recorded: born-digital or somebody else's OCR
+## ADR-016. Основная копия дубликата берётся из манифеста, а решения о включении следуют за содержимым
 
-**Context.** Investigating the slow books (ADR-012) showed that some files the
-inventory calls `good` are scans: a full-page picture with an invisible OCR
-text layer on top, added by whoever scanned the book. Their text is dense - so
-the character-density test passes - but it carries that OCR's errors. CLAUDE.md
-asks phase 2 to break retrieval metrics down by source type, "text / OCR";
-without this label those books would silently count as text.
+**Контекст.** Фаза 1a выбирала основную копию дубликата по числу страниц и
+длине пути. CLAUDE.md требует, чтобы выигрывала копия из nsumedia. Число
+страниц всё равно ничего не могло решить — копии побайтово одинаковы, — а самый
+короткий путь часто принадлежит книге, лежащей отдельно, той единственной
+копии, у которой нет происхождения.
 
-**Decision.** The inventory checks each sampled page for a single picture
-covering at least 90% of it. A document where at least half the sampled pages
-are like that has `text_origin = ocr-layer`; otherwise `digital`. The label is
-shown in the inventory report and in `courses.yaml` (`origin:`), and copied
-onto every parsed page (`origin` in `pages.jsonl`), so that chunks inherit it.
+**Решение.** Основная — та копия, которую указывает манифест, затем копия из
+самого раннего семестра, затем копия с самым коротким путём. Поэтому
+`mark_duplicates` выполняется после сверки с манифестом.
 
-**Cheap by construction.** `page.get_image_info()` reports where images are
-drawn without decoding them, so the check adds nothing noticeable to the
-inventory's eleven seconds.
+**Следствие, которому понадобилось собственное решение.** Исправление правила
+перенесло основную копию одной книги из `matan/sem1` (отдельная копия) в
+`matan/sem2` (копия из манифеста). В `courses.yaml` у старого пути было записано
+`include: true`, а у нового — `false` (дубликаты всегда записываются как
+`false`), так что наивное чтение молча выкинуло бы книгу из MVP.
 
-**Measured.** In the MVP, **4 of 33 documents are scans under an OCR layer -
-2 510 of 10 606 pages, almost a quarter**: "Антидемидович", Тер-Крикоров and
-Шабунин's calculus course, Самарский and Гулин's numerical methods, and
-Иртегов's "Введение в операционные системы". Across the corpus, 9 of the 97
-files with a good text layer are like this (5 023 pages). Without the label, a
-quarter of the MVP would have been counted as clean text in phase 2.
-
-These are the same four books that made the first parse slow (ADR-012): their
-pictures run to 4-10 megapixels a page.
-
-**Alternative rejected.** *Deciding per page.* More precise for a book that
-mixes scanned and born-digital pages, but it needs the check inside the parser
-and a full re-parse; phase 2 compares source types, and a document-level label
-answers that.
+Поэтому решение о включении читается по всем копиям одного и того же
+содержимого: раз копии всегда записываются как `false`, `true` на любой из них
+поставил автор. Этим правилом пользуются и перегенерация `courses.yaml`, и
+отбор на этапе парсинга. После исправления в MVP остались те же 33 документа, а
+эта книга оказалась привязана к своей копии из манифеста. Тест воспроизводит
+ровно эту последовательность.
 
 ---
 
-## ADR-018. Parse quality is judged against each page's own text layer
+## ADR-017. Происхождение текстового слоя записывается: изначально цифровой или чужой OCR
 
-**Context.** The first quality report flagged 86 of 10 606 pages, mostly by
-comparing a page's length with its document's median. Triaged by hand, almost
-none were parser failures: blank versos before a chapter (the PDF's text layer
-holds only a page number), 1 480 check marks from one book's support tables
-counted as junk, covers set in fonts with no Unicode mapping, and short pages
-carrying four or five `U+FFFD`. A list that cries wolf trains its reader to
-skip it. And the median comparison answered the wrong question: whether the
-page is short, not whether the parser lost anything.
+**Контекст.** Разбор медленных книг (ADR-012) показал, что некоторые файлы,
+которые инвентаризация считает `good`, — сканы: картинка во всю страницу с
+невидимым OCR-слоем поверх, добавленным тем, кто сканировал книгу. Текст у них
+плотный — проверка на плотность символов проходит, — но несёт ошибки того OCR.
+CLAUDE.md требует, чтобы в фазе 2 метрики поиска разбивались по типу источника,
+«текст / OCR»; без этой метки такие книги молча считались бы текстом.
 
-**Decision.** The parser records `source_chars` - the non-space characters in
-the page's own text layer - and the report compares the output with it:
+**Решение.** Инвентаризация проверяет каждую выбранную страницу на наличие
+одной картинки, покрывающей хотя бы 90% её площади. Документ, у которого так
+выглядит хотя бы половина выбранных страниц, получает
+`text_origin = ocr-layer`; иначе — `digital`. Метка показывается в отчёте
+инвентаризации и в `courses.yaml` (`origin:`) и копируется на каждую
+разобранную страницу (`origin` в `pages.jsonl`), чтобы её унаследовали чанки.
 
-* **text lost**: the PDF has at least 500 characters on the page, fewer than
-  30% came out, and no formula or picture explains the gap - review;
-* **blank in the PDF itself**: next to nothing in the text layer either -
-  expected, not flagged;
-* **junk**: more than 2% broken glyphs *and* at least 20 of them - review,
-  unless it is a cover or an endpaper.
+**Дёшево по построению.** `page.get_image_info()` сообщает, где нарисованы
+изображения, не декодируя их, так что проверка ничего заметного не добавляет к
+одиннадцати секундам инвентаризации.
 
-**Result.** 5 pages to review out of 10 606, 125 explained (67 blank in the
-PDF, 50 dominated by formulas, 4 covers, 4 figures). On the 6 576 pages
-without formulas the output keeps a median of 100% of the text layer, and 96%
-at the 1st percentile: the parser loses no prose.
+**Замер.** В MVP **4 из 33 документов — сканы под OCR-слоем: 2 510 из 10 606
+страниц, почти четверть**: «Антидемидович», курс матанализа Тер-Крикорова и
+Шабунина, численные методы Самарского и Гулина и «Введение в операционные
+системы» Иртегова. По всему корпусу таких 9 из 97 файлов с хорошим текстовым
+слоем (5 023 страницы). Без метки четверть MVP в фазе 2 считалась бы чистым
+текстом.
 
-**The same comparison found a real loss** on pages with formulas: 84 kept under
-30% of their text, some none at all. The layout model had labelled whole
-paragraphs of prose with inline maths as formulas - see ADR-012.
+Это те же четыре книги, из-за которых первый парсинг был медленным (ADR-012):
+их картинки — 4–10 мегапикселей на страницу.
 
----
-
-## ADR-019. Private-use glyphs are mapped only when their font is known
-
-**Context.** 1 721 characters in the MVP output were private-use code points.
-Symbol fonts place their glyphs at `U+F0NN` for byte `0xNN`, so the meaning
-depends on the font: `U+F0FC` is a check mark in Wingdings and a piece of a
-brace in Symbol. 86% of them were one glyph - Wingdings' check mark, in the
-function-support tables of Rago and Stevens's UNIX book, where each one means
-"supported". Left as they were, those tables said nothing.
-
-**Decision.** At parse time, while the font is still known, a page's
-private-use characters are mapped through a table of glyphs *measured in this
-corpus*: Wingdings `U+F0FC` → ✓, and in Symbol-encoded fonts (SymbolMT,
-EuclidSymbol) `U+F0AE` → → and `U+F0B7` → •. A character set in a font the
-table does not know, or in two fonts that disagree on the same page, is left
-alone. `MT-Extra` uses its own encoding and was deliberately not guessed at.
-
-**Result.** 1 481 check marks restored; private-use characters down from 1 721
-to 189 - pieces of large brackets inside formulas, which have no meaning of
-their own.
-
-**Alternative rejected.** *A complete Wingdings/Symbol table applied during
-cleaning.* Cleaning no longer knows the font, so it would map every `U+F0FC`
-to a check mark - including the brace pieces.
+**Отвергнутая альтернатива.** *Решать постранично.* Точнее для книги, где
+перемешаны сканированные и цифровые страницы, но требует проверки внутри
+парсера и полного перепарсинга; фаза 2 сравнивает типы источников, и на этот
+вопрос отвечает метка на уровне документа.
 
 ---
 
-## ADR-020. Chunks follow headings where the text allows, and never outgrow the model
+## ADR-018. Качество парсинга оценивается по собственному текстовому слою каждой страницы
 
-**Context.** CLAUDE.md asks for chunks cut at headings, long sections cut
-between paragraphs up to ~400 tokens with ~50 of overlap, and listings and
-tables never cut through the middle. The parsed MVP, measured with the
-embedding model's own tokenizer, does not cooperate with a literal reading:
+**Контекст.** Первый отчёт о качестве пометил 86 страниц из 10 606, в основном
+сравнивая длину страницы с медианой по её документу. При ручном разборе почти
+ни одна не оказалась сбоем парсера: пустые оборотные страницы перед главой
+(текстовый слой PDF содержит только номер страницы), 1 480 галочек из таблиц
+поддержки одной книги, посчитанные мусором, обложки, набранные шрифтами без
+отображения в Unicode, и короткие страницы с четырьмя-пятью `U+FFFD`. Список,
+который поднимает ложную тревогу, приучает читателя его пропускать. А сравнение
+с медианой отвечало не на тот вопрос: короткая ли страница, а не потерял ли
+парсер что-нибудь.
 
-* **Heading levels mean nothing across books.** Bratko's Prolog and Stevens's
-  network programming use level 1 only (124 and 382 headings); Williams's C++
-  book puts 1 605 run-in labels - "Объявление", "Результат" - at level 6. A
-  rule like "levels 1-3 are boundaries" works for none of them.
-* **Sections are tiny or huge.** 7 059 sections: median 383 tokens, but 18%
-  are under 50 tokens, and one runs to 51 637 with no heading at all.
-* **Listings and tables outgrow any chunk.** 76 of 4 265 listings and 257 of
-  694 tables exceed 450 tokens; one table is 5 656. multilingual-e5-base
-  reads 512 tokens and silently truncates the rest.
-* **28% of pages start mid-sentence.**
+**Решение.** Парсер записывает `source_chars` — число непробельных символов в
+собственном текстовом слое страницы, — и отчёт сравнивает вывод с ним:
 
-**Decision.**
-1. A heading starts a new chunk only once the current one holds at least 100
-   tokens; smaller sections are packed together, and the chunk is labelled
-   with the *common ancestor* of the sections it holds.
-2. Prose is cut between paragraphs, then between sentences, into pieces of at
-   most budget − overlap, so that the carried overlap always fits.
-3. A listing or table that fits goes whole. One that cannot is split along its
-   structure: a listing at blank lines between its parts, else between lines;
-   a table between rows, with its header repeated - unless the header alone
-   is over half the budget. Never inside a line or a row, except as a last
-   resort for text with no structure left (a 629-character table cell without
-   a space).
-4. A paragraph broken by a page break is joined back, across the two pages.
-5. Overlap is an exact suffix of the previous chunk: its closing sentences up
-   to ~50 tokens, or - when the last sentence alone is longer - its closing
-   words, marked "…". It never opens the next section, and a lone formula
-   marker is not carried.
-6. What is embedded is `course › document › section` plus the text. The text
-   budget leaves room for a context line capped at 64 tokens, so every chunk
-   fits the model's window by construction.
+* **текст потерян**: в PDF на странице хотя бы 500 символов, на выходе меньше
+  30%, и ни формула, ни рисунок разрыв не объясняют — на проверку;
+* **пусто в самом PDF**: в текстовом слое тоже почти ничего — ожидаемо, не
+  помечается;
+* **мусор**: больше 2% битых глифов *и* хотя бы 20 штук — на проверку, если это
+  не обложка и не форзац.
 
-**Result.** 20 190 chunks; median 329-365 tokens per course; 16 under 50
-tokens. What the model reads - prefix, context line, text - peaks at 487
-tokens, p99 462: **none of the 20 190 is truncated**. Overlap is present at
-96% of the 12 512 boundaries inside a section that follow prose; of the 469
-without it, 335 are by design - the next chunk opens with a listing or table,
-or the previous one ends on a bare marker - and 134 (1%) are unexplained.
+**Результат.** 5 страниц на проверку из 10 606, 125 объяснены (67 пустых в
+самом PDF, 50 — в основном формулы, 4 обложки, 4 рисунка). На 6 576 страницах
+без формул вывод сохраняет в медиане 100% текстового слоя и 96% на 1-м
+перцентиле: парсер не теряет обычный текст.
 
-**Found by measuring, not by reading the code.** Two bugs cost overlap at most
-boundaries: prose was cut to the full budget, leaving no room for the carried
-text; and every heading discarded the carried text, even a small one that did
-not start a chunk (2 559 boundaries). Along the way: the layout model
-sometimes labels an 884-character bold paragraph as a heading, so a
-"heading" over 150 characters is read as text. A first measurement of overlap
-also undercounted, because re-joined sentences no longer matched the original
-line breaks - which is why the overlap is now an exact suffix.
-
-**Alternatives rejected.**
-* *Fixed-size windows.* Simple, but cut sentences, listings and table rows.
-* *Headings as hard boundaries.* 18% of chunks would be a line or two.
-* *Semantic chunking by embedding similarity.* It would need the model at
-  chunking time and makes boundaries hard to explain - and to test.
+**То же сравнение нашло реальную потерю** на страницах с формулами: 84 из них
+сохранили меньше 30% текста, некоторые — ничего. Layout-модель помечала как
+формулы целые абзацы текста со строчной математикой — см. ADR-012.
 
 ---
 
-## ADR-021. Indexing is incremental because chunk ids come from content
+## ADR-019. Глифы из области частного использования (Private Use Area) сопоставляются, только когда известен их шрифт
 
-**Context.** Embedding the MVP takes about twenty minutes; the full corpus
-will take hours. Re-embedding everything after every change to parsing or
-chunking would make iterating on either impractical. CLAUDE.md asks for
-incremental indexing of changed chunks only.
+**Контекст.** 1 721 символ в выводе MVP был кодовой точкой из области частного
+использования. Символьные шрифты кладут свои глифы в `U+F0NN` для байта `0xNN`,
+поэтому смысл зависит от шрифта: `U+F0FC` — галочка в Wingdings и кусок
+фигурной скобки в Symbol. 86% из них были одним глифом — галочкой Wingdings из
+таблиц поддержки функций в книге Раго и Стивенса по UNIX, где каждая означает
+«поддерживается». В исходном виде эти таблицы ничего не сообщали.
 
-**Decision.** A chunk's id is a UUID derived from the embedding model's name,
-the sha256 of its document, its first page and the exact text that is
-embedded. Syncing is then set arithmetic against the ids already in Qdrant:
-embed the new ones, delete the missing ones, leave the rest untouched - not
-re-embedded, not even read. The model is loaded only if something is new.
+**Решение.** Во время парсинга, пока шрифт ещё известен, символы частного
+использования на странице сопоставляются по таблице глифов, *измеренных в этом
+корпусе*: Wingdings `U+F0FC` → ✓, а в шрифтах с кодировкой Symbol (SymbolMT,
+EuclidSymbol) `U+F0AE` → → и `U+F0B7` → •. Символ, набранный шрифтом, которого
+нет в таблице, или двумя шрифтами, которые на одной странице расходятся во
+мнениях, остаётся как есть. `MT-Extra` использует собственную кодировку, и её
+намеренно не угадывали.
 
-**Consequences.**
-* An edit re-embeds only the chunks it touched; changing the model or a
-  course title changes the ids it affects, so those are rebuilt.
-* Excluding a document in `courses.yaml` deletes its points on the next run.
-* A run with `--course` compares and deletes only that course's points, and
-  rewrites only that course's lines in `data/chunks.jsonl`. Without that
-  scope, a single-course run would have treated every other course as stale -
-  both traps were caught before the first real run and are covered by tests.
+**Результат.** Восстановлено 1 481 галочка; символов частного использования
+стало 189 вместо 1 721 — это куски больших скобок внутри формул, у которых нет
+самостоятельного смысла.
 
-**Verified on the real index.** First run: 20 190 points added. Second run:
-0 added, 0 deleted, the model never loaded, 76 s instead of 22 min. A run over
-one course: 0 changes, and the collection still holds all 20 190 points.
-
-**Embeddings.** multilingual-e5-base with its `passage: ` prefix, normalised,
-cosine distance. Measured on MPS on 512 real passages: batch 32 gives 24.1
-chunks/s, 64 gives 22.9, 128 gives 17.9; float16 is 9% faster and moves vectors
-by up to 1 − 0.99954 in cosine - not worth it, so float32 and batch 32.
-
-**What the benchmark missed.** The real run averaged 16.1 chunks/s, not 24.
-Writing to Qdrant costs 0.16 s per batch of 256 - 2%. The rest is heat: this
-MacBook Air has no fan, and three consecutive ten-second runs already fall
-25.4 → 24.5 → 23.1 chunks/s. Sustained, it settles near 16. For planning the
-full corpus (phase 4.5), the sustained rate is the one that counts: at the
-MVP's 1.9 chunks per page, 59 630 pages make about 113 000 chunks, which is
-about two hours - not the 93 minutes phase 1a extrapolated from a burst.
-
-**Alternatives rejected.**
-* *Ids from position (document + chunk number).* Inserting one chunk early in
-  a document would shift every id after it and re-embed the rest.
-* *Rebuilding the collection on every run.* Correct, and twenty minutes each.
+**Отвергнутая альтернатива.** *Полная таблица Wingdings/Symbol, применяемая при
+очистке.* На этапе очистки шрифт уже неизвестен, поэтому каждый `U+F0FC`
+превратился бы в галочку — включая куски скобок.
 
 ---
 
-## ADR-022. BM25 is written out, and stems each word in its own language
+## ADR-020. Чанки идут по заголовкам, где текст это позволяет, и никогда не перерастают модель
 
-**Context.** CLAUDE.md asks for BM25 with Snowball stemming "by the language of
-the fragment". The fragments of this corpus are rarely one language: a Russian
-paragraph about `fork()`, a C listing with Russian comments. A chunk-level
-language flag would send English identifiers through the Russian stemmer, or
-the reverse.
+**Контекст.** CLAUDE.md требует резать чанки по заголовкам, длинные разделы —
+между абзацами, до ~400 токенов с перекрытием ~50, а листинги и таблицы никогда
+не резать посередине. Разобранный MVP, измеренный собственным токенизатором
+эмбеддинг-модели, буквальному прочтению не поддаётся:
 
-**Decision.**
-* **The language is decided per word, by its alphabet**: Cyrillic words go to
-  the Russian Snowball stemmer, Latin words to the English one, anything else
-  - numbers, identifiers with digits - stays as it is. Questions are tokenised
-  the same way, so a word always meets its own stem.
-* `ё` is folded to `е` (the corpus spells words both ways); one-character
-  tokens are dropped (formula variables and one-letter prepositions, which
-  match everywhere).
-* The context line - "course › document › section" - is indexed with the
-  text, as it is embedded with it: a section title is often the best match a
-  question has.
-* The scoring is Lucene's: k1 = 1.2, b = 0.75, and an idf that never goes
-  negative, so a very common term adds a little instead of subtracting.
+* **Уровни заголовков между книгами ничего не значат.** Prolog Братко и сетевое
+  программирование Стивенса используют только уровень 1 (124 и 382 заголовка);
+  книга Уильямса по C++ ставит 1 605 подзаголовков-врезок — «Объявление»,
+  «Результат» — на уровень 6. Правило вроде «уровни 1–3 — границы» не работает
+  ни для одной из них.
+* **Разделы либо крошечные, либо огромные.** 7 059 разделов: медиана 383
+  токена, но 18% короче 50 токенов, а один тянется на 51 637 без единого
+  заголовка.
+* **Листинги и таблицы перерастают любой чанк.** 76 из 4 265 листингов и 257 из
+  694 таблиц длиннее 450 токенов; одна таблица — 5 656. multilingual-e5-base
+  читает 512 токенов и молча обрезает остальное.
+* **28% страниц начинаются посреди предложения.**
 
-**Why write BM25 at all.** It is a dozen lines of arithmetic over numpy arrays,
-and every part of it is explainable at an interview: the inverted index, the
-length normalisation, the idf. Measured on the MVP: 20 190 chunks and 65 764
-terms indexed in 2.4 s, 0.8 ms per query. At that cost the index is rebuilt
-from `data/chunks.jsonl` on every start rather than cached - there is nothing
-to invalidate.
+**Решение.**
+1. Заголовок начинает новый чанк, только когда в текущем уже есть хотя бы 100
+   токенов; более мелкие разделы упаковываются вместе, а чанк помечается
+   *общим предком* разделов, которые в нём лежат.
+2. Обычный текст режется между абзацами, затем между предложениями, на куски не
+   длиннее «бюджет − перекрытие», чтобы переносимое перекрытие всегда
+   помещалось.
+3. Листинг или таблица, которые помещаются, идут целиком. Те, что не
+   помещаются, делятся по своей структуре: листинг — по пустым строкам между
+   частями, иначе между строками; таблица — между строками таблицы, с повтором
+   шапки, если только шапка сама не занимает больше половины бюджета. Никогда
+   внутри строки кода или строки таблицы — кроме крайнего случая, когда у текста
+   не осталось структуры (ячейка таблицы на 629 символов без единого пробела).
+4. Абзац, разорванный переходом на новую страницу, склеивается обратно через
+   две страницы.
+5. Перекрытие — точный суффикс предыдущего чанка: его последние предложения до
+   ~50 токенов или, если последнее предложение само длиннее, его последние
+   слова, помеченные «…». Перекрытие никогда не открывает следующий раздел, а
+   одиночный маркер формулы не переносится.
+6. В эмбеддинг идёт `курс › документ › раздел` плюс текст. Бюджет текста
+   оставляет место для строки контекста длиной до 64 токенов, так что каждый
+   чанк помещается в окно модели по построению.
 
-**Alternatives rejected.**
-* *`rank_bm25`.* Scores every document per query in Python, and hides the
-  tokenisation this corpus needs control over.
-* *Qdrant sparse vectors with a BM25 model.* A second model, and its own
-  stemming instead of the Snowball stemmers CLAUDE.md names.
-* *Elasticsearch or OpenSearch.* A server to run for 20 000 chunks - against
-  "не усложнять".
+**Результат.** 20 190 чанков; медиана 329–365 токенов в зависимости от курса; 16
+короче 50 токенов. То, что читает модель — префикс, строка контекста, текст, —
+достигает максимум 487 токенов, p99 — 462: **ни один из 20 190 не обрезается**.
+Перекрытие есть на 96% из 12 512 границ внутри раздела, идущих после обычного
+текста; из 469 границ без него 335 — так задумано (следующий чанк начинается с
+листинга или таблицы либо предыдущий заканчивается голым маркером), а 134 (1%)
+не объяснены.
 
----
+**Найдено замерами, а не чтением кода.** Две ошибки лишали перекрытия
+большинство границ: обычный текст резался на полный бюджет, не оставляя места
+переносимому тексту; и каждый заголовок выбрасывал переносимый текст, даже
+маленький, не начинавший чанк (2 559 границ). Попутно: layout-модель иногда
+помечает жирный абзац на 884 символа как заголовок, поэтому «заголовок» длиннее
+150 символов читается как текст. Первый замер перекрытия тоже недосчитывал,
+потому что склеенные предложения уже не совпадали с исходными переносами
+строк, — именно поэтому перекрытие теперь точный суффикс.
 
-## ADR-023. Hybrid search fuses by rank; the reranker re-reads a shortlist
-
-**Context.** Four modes are required: BM25, dense, their fusion, and the fusion
-re-ordered by the `bge-reranker-v2-m3` cross-encoder, which must be possible
-to switch off.
-
-**Decision.**
-* **Fusion by Reciprocal Rank Fusion**, k = 60 (Cormack et al., 2009), over the
-  top 50 of each retriever. BM25 scores and cosine similarities live on
-  unrelated scales; RRF looks only at ranks, so no calibration is needed. Ties
-  are broken by chunk id, so a run is reproducible.
-* **The reranker re-reads the fused top 30**, passage and context line
-  together, and returns the top k. A cross-encoder reads question and passage
-  at once, which is why it orders a shortlist better than two independently
-  computed vectors - and why it cannot search the whole corpus.
-* `RERANKER_ENABLED=false` turns "hybrid+rerank" into "hybrid" everywhere, for
-  a machine without the memory or the time for the heaviest model here.
-* A dense search whose request fails in transport - a timeout, a dropped
-  connection - is retried twice. The first full evaluation died two hours in
-  on a single timed-out request: the laptop had slept with it in flight.
-
-**Measured on an M3 MacBook Air, MPS.** Per query: BM25 0.8 ms, dense 70 ms,
-hybrid 47 ms, **hybrid + rerank about 4 s** - 30 question/passage pairs through
-a 568M-parameter model. float16 is *slower* on MPS (4 565 ms against 4 116,
-with an identical top 10), and batches of 32 are slower than 16. The cost is
-linear in the number of candidates, which is therefore the lever: phase 3
-decides it against the time-to-first-token budget, once the evaluation shows
-what reranking 30 candidates buys over fewer.
-
-**How retrieval is scored** (phase 2 evaluation, `nsu-rag eval`):
-* a hit is a chunk from the gold document whose pages overlap the gold pages;
-  documents are matched **by content hash**, so a question naming any copy of
-  a duplicate is matched by the chunks of the indexed copy;
-* recall@k of a question is the share of its gold sources found in the top k
-  - partial for a multi-hop question - and MRR@10 uses the first hit;
-* unanswerable questions are left to phase 4, which measures refusals;
-* every mode is also scored with the question's course as a filter, which
-  measures what phase 5's router could gain;
-* the report states a 95% interval for recall@10, because with fifty questions
-  a difference of a few points between modes is noise;
-* the report holds question ids and numbers only, so it can be committed.
-
-**Alternatives rejected.**
-* *Fusing scores* - min-max normalised BM25 plus cosine, weighted. The weight
-  is one more parameter to tune on fifty questions, and one outlier score
-  stretches a query's whole normalisation.
-* *Reranking everything the retrievers return.* Up to 100 pairs through the
-  cross-encoder: at the measured, linear cost, about 13 s a query.
-* *An LLM as the reranker.* The same 9B model that answers would have to read
-  30 passages before it starts reading them again to answer.
+**Отвергнутые альтернативы.**
+* *Окна фиксированного размера.* Просто, но режет предложения, листинги и строки
+  таблиц.
+* *Заголовки как жёсткие границы.* 18% чанков были бы строкой-двумя.
+* *Семантическая нарезка по сходству эмбеддингов.* Модель понадобилась бы уже на
+  этапе нарезки, а границы стало бы трудно объяснить — и протестировать.
 
 ---
 
-## ADR-024. The prompt is measured with the model's own tokenizer before it is sent
+## ADR-021. Индексация инкрементальная, потому что id чанков выводятся из содержимого
 
-**Context.** The model's window is 8 192 tokens (`num_ctx` in the Modelfile,
-ADR-004). A prompt that does not fit is not rejected: the server cuts it
-silently, and the model answers from whatever survived. CLAUDE.md requires the
-prompt builder to stay inside the budget and to log what it had to leave out.
-The answer's own 1 024 tokens (`LLM_MAX_OUTPUT_TOKENS`) come out of the same
-window.
+**Контекст.** Эмбеддинг MVP занимает около двадцати минут; полный корпус займёт
+часы. Пересчитывать всё после каждого изменения парсинга или нарезки — значит
+сделать итерации по ним непрактичными. CLAUDE.md требует инкрементальной
+индексации только изменившихся чанков.
 
-**Decision.**
-* **Tokens are counted with the answering model's tokenizer**, loaded from
-  Hugging Face (`LLM_TOKENIZER=Qwen/Qwen3.5-9B`: the tokenizer files, about
-  23 MB, never the weights). Ollama 0.34 has no tokenize endpoint
-  (`/api/tokenize` answers 404), so there is nothing to ask the server.
-* **Calibrated against the server.** On ten prompts built from real chunks,
-  the tokenizer's count of the message texts plus 17 matched the
-  `prompt_tokens` Ollama reported *exactly* on all nine Russian prompts, and
-  came one short on an English one. 17 is the chat template's own tokens
-  (`CHAT_OVERHEAD`); a margin of 32 more absorbs that drift and the joins
-  between fragments, which a tokenizer does not count additively.
-* **The budget**: 8 192 - 1 024 (answer) - 17 - 32 = **7 119 tokens** for the
-  rules, the fragments and the question.
-* **Fragments go in by rank while they fit.** One that does not fit is skipped
-  whole - never cut mid-definition - and a shorter one further down may still
-  go in; numbering stays dense, so the model never sees a gap. Every skipped
-  fragment is logged with its chunk id, and its count is returned with the
-  answer (`dropped`).
-* **Checked on every answer.** The streamed reply ends with the server's own
-  `prompt_tokens`; it is logged next to the estimate, with a warning if it
-  ever exceeds the budget. On the phase 3 smoke run - ten questions, ten
-  fragments each, 3 948 to 5 123 prompt tokens - the estimate was above the
-  truth by exactly 10 tokens every time: the separators between fragments
-  are counted as two tokens and cost one.
+**Решение.** Id чанка — UUID, выведенный из названия эмбеддинг-модели, sha256
+его документа, его первой страницы и точного текста, который идёт в эмбеддинг.
+Синхронизация тогда сводится к операциям над множествами относительно id, уже
+лежащих в Qdrant: новые — посчитать, пропавшие — удалить, остальные не трогать
+(не пересчитывать и даже не читать). Модель загружается, только если есть
+что-то новое.
 
-**Alternatives rejected.**
-* *Characters divided by a constant.* Measured on 3 000 indexed chunks, the
-  median characters per Qwen token is 3.9 in Russian prose, 2.8 in Russian
-  with formulas, 3.6 in code and 2.4 in English. A constant safe for the
-  densest kind wastes over a third of the window on prose; one tuned to
-  prose overflows it on formulas by as much.
-* *`tiktoken`.* OpenAI's vocabularies, not Qwen's: the counts would be
-  confidently wrong.
-* *Sending first and reading `prompt_tokens` afterwards.* By then the prompt
-  has already been cut.
-* *Trimming each fragment to fit.* A fragment is a chunk that was built to be
-  self-contained (ADR-020); half of one is worse than a different whole one.
+**Следствия.**
+* Правка пересчитывает только затронутые чанки; смена модели или названия курса
+  меняет id тех чанков, которых она касается, и они пересобираются.
+* Исключение документа в `courses.yaml` удаляет его точки при следующем
+  запуске.
+* Запуск с `--course` сравнивает и удаляет только точки этого курса и
+  переписывает в `data/chunks.jsonl` только строки этого курса. Без этого
+  ограничения запуск по одному курсу посчитал бы все остальные устаревшими —
+  обе ловушки поймали до первого настоящего запуска, и они покрыты тестами.
 
----
+**Проверено на настоящем индексе.** Первый запуск: добавлено 20 190 точек.
+Второй: 0 добавлено, 0 удалено, модель ни разу не загрузилась, 76 с вместо
+22 мин. Запуск по одному курсу: 0 изменений, а в коллекции по-прежнему все
+20 190 точек.
 
-## ADR-025. The model cites a label; the code checks it and writes the citation
+**Эмбеддинги.** multilingual-e5-base со своим префиксом `passage: `,
+нормализованные, косинусное расстояние. Замер на MPS на 512 настоящих
+фрагментах: батч 32 даёт 24,1 чанка/с, 64 — 22,9, 128 — 17,9; float16 быстрее
+на 9% и сдвигает векторы по косинусу на величину до 1 − 0,99954 — оно того не
+стоит, поэтому float32 и батч 32.
 
-**Context.** CLAUDE.md asks for a citation after every claim, in the form
-`[course · «document» · p. N]`, and counts a citation of a fragment that does
-not exist as an error.
+**Что упустил бенчмарк.** Настоящий запуск в среднем дал 16,1 чанка/с, а не 24.
+Запись в Qdrant стоит 0,16 с на батч из 256 — 2%. Остальное — нагрев: у этого
+MacBook Air нет вентилятора, и три десятисекундных прогона подряд уже падают
+25,4 → 24,5 → 23,1 чанка/с. В установившемся режиме скорость оседает около 16.
+Для планирования полного корпуса (фаза 4.5) значима именно установившаяся
+скорость: при 1,9 чанка на страницу, как в MVP, 59 630 страниц дают около
+113 000 чанков, это примерно два часа — а не 93 минуты, которые фаза 1a
+экстраполировала из короткого всплеска.
 
-**Decision.**
-* **Fragments are labelled `[Ф1]`…`[Ф10]` in the prompt**, each followed by its
-  context line and pages. The model is told to cite the label; the code checks
-  every label against the fragments the model was actually given and replaces
-  it with the full citation. Course titles, document titles and page numbers
-  are never generated, so they cannot be misspelt or invented.
-* **A letter, not a bare number.** `[1]` cannot be told apart from mathematics:
-  `[0, 1]` is a segment, and three of the five MVP courses are mathematical.
-  The parser takes `[Ф1]`, `[Ф1, Ф3]`, `[Ф1; 3]`, `[ф2]`, `[Фрагмент 2]`, and
-  leaves every other bracket alone; the tests list the cases, `[0, 1]`,
-  `[a, b]`, `[формула]` and `[Рис. 2]` among them.
-* **Errors are visible and counted.** A label with no fragment behind it
-  appears in the answer as `[нет фрагмента Ф9]`, goes into `citation_errors`
-  and the log; so does an answer - other than a refusal - with no citation at
-  all. Whether *every claim* is cited is for phase 4's judge to score; a regex
-  cannot tell where one claim ends.
-* **Expanded while streaming.** Text is passed through as it arrives, except
-  from an open bracket onwards, which is held until it closes (and is expanded
-  if it is a label) or runs past 48 characters (and is prose). The reader waits
-  a few tokens at most, and a test checks, at every possible split of a
-  sample, that streaming produces exactly what rendering the whole text does.
-* Two fragments from the same page cited together print one citation.
-
-**Why not let the model write the full citation.** Besides the typos: a label
-is 4 tokens of output, a full citation 31-36 (counted with the model's
-tokenizer on synthetic titles of real length). At about 15 tokens/s, an answer
-with five citations would spend some ten seconds more writing them.
-
-**Alternatives rejected.**
-* *Bare numbers, `[1]`* - ambiguous in mathematics, as above.
-* *Structured output* - a JSON list of claims with source ids. No streaming,
-  a new way to fail for a 9B model (invalid JSON), and the reader wants prose.
-* *Attribution after the fact* - matching each sentence to its most similar
-  fragment. It says which fragment *resembles* a sentence, not which one the
-  model used, and it is a second retrieval problem to evaluate.
+**Отвергнутые альтернативы.**
+* *Id по позиции (документ + номер чанка).* Вставка одного чанка в начале
+  документа сдвинула бы все id после него и вызвала бы пересчёт остального.
+* *Пересоздавать коллекцию на каждом запуске.* Правильно — и по двадцать минут
+  каждый раз.
 
 ---
 
-## ADR-026. Ten fragments per answer; no fragments, no model
+## ADR-022. BM25 написан самостоятельно и стеммит каждое слово на его собственном языке
 
-**Context.** How many fragments the model reads, from which retrieval, and
-what it says when the handbooks do not answer. Recall wants more fragments;
-the wait for the first word wants fewer, because the model reads the whole
-prompt before it writes anything.
+**Контекст.** CLAUDE.md требует BM25 со стеммингом Snowball «по языку
+фрагмента». Фрагменты этого корпуса редко бывают на одном языке: русский абзац
+про `fork()`, листинг на C с русскими комментариями. Флаг языка на уровне чанка
+отправил бы английские идентификаторы в русский стеммер или наоборот.
 
-**Decision.**
-* **Ten fragments** (`ANSWER_FRAGMENTS=10`), which the reranker picks from the
-  hybrid top 30 (`RETRIEVAL_MODE=hybrid+rerank`, ADR-023).
-  * Ten is the depth phase 2 measures recall at: recall@10 is the chance that
-    the answer is in front of the model at all.
-  * Reading time, measured on the M3 Air with the model loaded and memory to
-    spare: 2 fragments (782 prompt tokens) 5.1 s to the first token, 6 (1 912)
-    9.8 s, 10 (3 124) 11.0 s, 14 (4 488) 12.9 s. Going from six to ten costs
-    1.2 s.
-  * Short of memory, it is a different machine. The phase 3 smoke run - ten
-    questions, with Xcode and its debugger, a messenger and a browser open,
-    12-17 GB of swap in use - read the same ten fragments (3 900-5 100
-    tokens) in 29-47 s, at 98-149 tokens/s. The reranker took 15-19 s where
-    on its own, the same hour, it takes 4.5 s - its 2.1 GB of weights had been
-    paged out while the model wrote - and dense search 2-6 s instead of 0.1:
-    the first word came after 49-77 s. With `RERANKER_ENABLED=false`
-    (four of the questions) search took 0.1-0.5 s and the first word came
-    after 27-71 s. Reading the prompt is the largest part either way.
-  * It is a default for phase 4 to test against answer quality, not a result.
-* **Refusal.** The model is told to reply with exactly «В методичках этого
-  нет.», recognised whatever the quotes, markup or case, and whatever follows.
-  If search returns nothing - a course filter with no match, or no fragment
-  fits the budget - the service refuses without asking the model: there would
-  be nothing to cite, so an answer could only come from the model's memory.
-* **Deterministic.** Thinking off (ADR-003) and temperature 0 (ADR-002): the
-  same question gets the same answer, which phase 4's comparisons rely on.
+**Решение.**
+* **Язык определяется для каждого слова по его алфавиту:** кириллические слова
+  идут в русский стеммер Snowball, латинские — в английский, всё прочее (числа,
+  идентификаторы с цифрами) остаётся как есть. Вопросы токенизируются так же,
+  поэтому слово всегда встречается со своей основой.
+* `ё` приводится к `е` (в корпусе слова пишутся и так, и так); токены из одного
+  символа отбрасываются (переменные формул и однобуквенные предлоги, которые
+  совпадают везде).
+* Строка контекста — «курс › документ › раздел» — индексируется вместе с
+  текстом, как и идёт в эмбеддинг вместе с ним: заголовок раздела часто
+  оказывается лучшим совпадением для вопроса.
+* Формула скоринга — как в Lucene: k1 = 1,2, b = 0,75 и idf, который никогда не
+  уходит в минус, так что очень частый термин немного добавляет, а не вычитает.
 
-**Alternatives rejected.**
-* *Five fragments* - seconds faster, but every fragment left out is a chance
-  that the answer never reaches the model; recall@5 against recall@10 in
-  phase 2's report will say what that costs.
-* *Filling the budget* - about 17 fragments fit in 7 119 tokens, but the
-  reranker's seventeenth is rarely relevant, and each one adds reading time
-  and gives a 9B model more to lose its way in.
-* *A threshold on the reranker's score*, refusing below it without asking the
-  model. That is phase 5's agent; the threshold needs labelled questions to be
-  set, and there are none yet.
+**Зачем вообще писать BM25 самому.** Это дюжина строк арифметики над массивами
+numpy, и каждую её часть можно объяснить на собеседовании: инвертированный
+индекс, нормализация по длине, idf. Замер на MVP: 20 190 чанков и 65 764
+термина индексируются за 2,4 с, 0,8 мс на запрос. При такой цене индекс
+пересобирается из `data/chunks.jsonl` при каждом старте, а не кэшируется —
+инвалидировать нечего.
+
+**Отвергнутые альтернативы.**
+* *`rank_bm25`.* Считает каждый документ на каждый запрос на чистом Python и
+  прячет токенизацию, которую в этом корпусе нужно контролировать.
+* *Разреженные векторы Qdrant с моделью BM25.* Вторая модель и собственный
+  стемминг вместо стеммеров Snowball, которые называет CLAUDE.md.
+* *Elasticsearch или OpenSearch.* Целый сервер ради 20 000 чанков — против
+  принципа «не усложнять».
 
 ---
 
-## ADR-027. One pipeline behind the CLI, `/ask` and a Server-Sent Events stream
+## ADR-023. Гибридный поиск объединяет по рангу; реранкер перечитывает короткий список
 
-**Context.** Phase 3 asks for `POST /ask` (JSON), `POST /ask/stream` (SSE) and
-`nsu-rag ask`, with latency logged per stage: search, rerank, first token,
-whole answer.
+**Контекст.** Нужны четыре режима: BM25, dense, их объединение и объединение,
+переупорядоченное cross-encoder'ом `bge-reranker-v2-m3`, который должен
+отключаться.
 
-**Decision.**
-* **The pipeline is one async generator of events**: `sources`, then `token`
-  after `token`, then `done`. The stream forwards them as they come; `/ask` and
-  the CLI wait for `done`. One code path, tested once.
-* **Sources go first**, before the model starts: reading the prompt takes the
-  model ten seconds and more on this laptop, and a client can show meanwhile
-  which pages are being read.
-* **FastAPI's own SSE support** (`EventSourceResponse`, `ServerSentEvent`, in
-  the installed FastAPI 0.141): no `sse-starlette`, and keep-alive pings come
-  with it. Each event's JSON is written with `ensure_ascii=False`, so
-  `curl -N` shows Russian rather than `\u` escapes.
-* **POST, not GET**: the question is a body. The browser's `EventSource` can
-  only GET; a web client reads this stream with `fetch` instead.
-* **Checked before the stream starts.** Once a streaming endpoint runs, its
-  `200` is on the wire, so the checks live in one dependency: the body is
-  validated, then the pipeline is loaded, then the course is checked - `422`,
-  listing the indexed courses. The order took a fix: FastAPI calls a
-  dependency's own dependencies *before* validating the body, so with the
-  pipeline as a sub-dependency an empty question waited 20 s for the models,
-  and would have got a `503` had they failed to load. The loading is now a
-  call inside the dependency, which FastAPI makes only for a valid body; a
-  test pins it down. A failure after the `200`, such as the LLM going away
-  mid-answer, ends the stream with an `error` event. On `/ask` an LLM failure
-  is a `502`: something upstream failed, not this service.
-* **Loaded by the first question**, not at start-up: the models take some 20 s
-  to load, `/health` must answer at once, and a container without the ML
-  extras must still start. A failed load is a `503`, retried by the next
-  question. The load ends with a warm-up search, so the first real question
-  is not charged for kernel compilation.
-* **Search runs in a worker thread, one question at a time.** Search and
-  rerank are synchronous and heavy; `asyncio.to_thread` keeps the event loop
-  answering. A lock serialises them: the embedder, the cross-encoder and
-  their fast tokenizers are not meant to be called from two threads at once.
-  Generation is not locked; Ollama schedules concurrent requests itself.
-* **Timings.** `search_ms` and `rerank_ms` - how long each stage took;
-  `llm_first_token_ms` - from the request to the model to its first token,
-  i.e. reading the prompt; `first_token_ms` and `total_ms` - from the
-  question's arrival, what a reader actually waits. One INFO line per answer
-  adds prompt tokens (estimated and reported), answer tokens and tokens/s.
-* **A reader who leaves stops the model.** The model's stream is closed the
-  moment its reader stops listening (`contextlib.aclosing` - without it the
-  connection lives on until the garbage collector finalises the generator; a
-  test tells the two apart), and Ollama then cancels the generation. Checked
-  on Ollama 0.34.3: a stream closed after 20 chunks of a 1 000-token request
-  is logged as a cancelled task, stopped at 60 tokens, prompt included.
+**Решение.**
+* **Объединение через Reciprocal Rank Fusion**, k = 60 (Cormack и др., 2009), по
+  топ-50 каждого поисковика. Оценки BM25 и косинусное сходство живут в
+  несвязанных шкалах; RRF смотрит только на ранги, так что калибровка не нужна.
+  Ничьи разрешаются по id чанка, поэтому прогон воспроизводим.
+* **Реранкер перечитывает объединённый топ-30** — фрагмент вместе со строкой
+  контекста — и возвращает топ-k. Cross-encoder читает вопрос и фрагмент
+  одновременно, поэтому он упорядочивает короткий список лучше, чем два
+  независимо посчитанных вектора, — и поэтому же не может искать по всему
+  корпусу.
+* `RERANKER_ENABLED=false` везде превращает «hybrid+rerank» в «hybrid» — для
+  машины, у которой нет памяти или времени на самую тяжёлую здесь модель.
+* Dense-поиск, запрос которого упал на транспорте (таймаут, оборванное
+  соединение), повторяется дважды. Первая полная оценка умерла через два часа
+  на одном запросе с таймаутом: ноутбук уснул, пока тот был в пути.
 
-**Alternatives rejected.**
-* *WebSocket* - two-way, which a question and its answer do not need.
-* *Loading the models at start-up* - `/health` would be silent for 20 s, and
-  a broken index would stop the service from starting instead of being
-  reported.
-* *A task queue with polling* - against "не усложнять", and the tokens would
-  still need a stream.
+**Замер на MacBook Air M3, MPS.** На запрос: BM25 0,8 мс, dense 70 мс, hybrid
+47 мс, **hybrid + rerank около 4 с** — 30 пар «вопрос/фрагмент» через модель на
+568M параметров. float16 на MPS *медленнее* (4 565 мс против 4 116 при
+одинаковом топ-10), а батчи по 32 медленнее, чем по 16. Стоимость линейна по
+числу кандидатов, и потому именно оно — рычаг: фаза 3 выбирает его под бюджет
+времени до первого токена, когда оценка покажет, что даёт реранк 30 кандидатов
+по сравнению с меньшим числом.
+
+**Как оценивается поиск** (оценка фазы 2, `nsu-rag eval`):
+* попадание — чанк из эталонного документа, страницы которого пересекаются с
+  эталонными страницами; документы сопоставляются **по хешу содержимого**,
+  поэтому вопрос, указывающий любую копию дубликата, сопоставляется с чанками
+  проиндексированной копии;
+* recall@k вопроса — доля его эталонных источников, найденных в топ-k
+  (частичная для multi-hop-вопроса), а MRR@10 использует первое попадание;
+* вопросы без ответа оставлены фазе 4, которая измеряет отказы;
+* каждый режим также оценивается с фильтром по курсу вопроса — это измеряет,
+  сколько мог бы выиграть маршрутизатор фазы 5;
+* отчёт указывает 95%-й интервал для recall@10, потому что при пятидесяти
+  вопросах разница в несколько пунктов между режимами — шум;
+* отчёт содержит только id вопросов и числа, поэтому его можно коммитить.
+
+**Отвергнутые альтернативы.**
+* *Объединять оценки* — нормализованный min-max BM25 плюс косинус с весами. Вес —
+  ещё один параметр для подбора на пятидесяти вопросах, а одна выбивающаяся
+  оценка растягивает всю нормализацию запроса.
+* *Реранжировать всё, что вернули поисковики.* До 100 пар через cross-encoder:
+  при измеренной линейной стоимости — около 13 с на запрос.
+* *LLM в роли реранкера.* Той же модели на 9B, что отвечает, пришлось бы
+  прочитать 30 фрагментов, прежде чем читать их снова, чтобы ответить.
 
 ---
 
-## ADR-028. The judge rules on facts it can check, in JSON, twice per answer
+## ADR-024. Промпт измеряется собственным токенизатором модели до отправки
 
-**Context.** Phase 4 scores answers with an LLM judge on its own endpoint
-(`JUDGE_*`): faithfulness, completeness against the author's reference answer,
-correct citations, refusals on unanswerable questions - and calibrates the
-judge against the author's own labels with agreement and Cohen's kappa.
+**Контекст.** Окно модели — 8 192 токена (`num_ctx` в Modelfile, ADR-004).
+Промпт, который не помещается, не отклоняется: сервер молча его обрезает, и
+модель отвечает по тому, что уцелело. CLAUDE.md требует, чтобы сборщик промпта
+укладывался в бюджет и записывал в лог то, что пришлось выбросить. Собственные
+1 024 токена ответа (`LLM_MAX_OUTPUT_TOKENS`) берутся из того же окна.
 
-**Decision.**
-* **Two questions per answer, two calls.** Faithfulness and citations need the
-  fragments - labelled exactly as the answering model saw them - and the raw
-  answer, labels included (rendered citations are ambiguous: two fragments of
-  one page print the same). Completeness needs only the question, the
-  reference and the answer, a far shorter prompt.
-* **Binary verdicts, like the author's labels**, so that kappa can be
-  computed between the two.
-* **JSON against a schema, lists before verdicts.** The judge fills
-  `unsupported`, `miscited`, `uncited` (or `missing`) and only then
-  `faithful` / `citations_correct` (or `complete`): a small model decides
-  better once it has written down what it found, and the lists show a reader
-  *why*. Ollama honours `response_format` with a JSON schema - checked live on
-  0.34.3. A reply that does not parse is a **judge failure**, counted and
-  reported, never read as a verdict; a verdict contradicting its own lists is
-  counted too.
-* **What code can check, code checks.** Refusals are recognised by the
-  refusal phrase, not by the judge, and never sent to it; citations of
-  fragments that do not exist are counted from the answer itself
-  ("citations valid"); the judge rules only on whether a real citation
-  supports its claim ("citations supported").
-* **Where a refusal counts.** Against completeness on an answerable question,
-  for refusal accuracy on an unanswerable one; faithfulness is measured over
-  the answers actually given. A metric over no answers is "—", never 0.
-* **Answers stay out of git.** They quote the handbooks, so each run keeps
-  them in `data/eval-runs/<date>-<mode>-<model>/`; the report in
-  `eval/reports/` has ids and numbers only.
-* **Calibration** reads the author's `eval/manual_labels.jsonl` (id, run,
-  faithful, complete) against the judge's verdicts on the same answers and
-  reports agreement and kappa for each verdict separately - a judge can be
-  good at one and useless at the other.
+**Решение.**
+* **Токены считаются токенизатором отвечающей модели**, загруженным с Hugging
+  Face (`LLM_TOKENIZER=Qwen/Qwen3.5-9B`: только файлы токенизатора, около 23 МБ,
+  никогда не веса). В Ollama 0.34 нет endpoint для токенизации
+  (`/api/tokenize` отвечает 404), так что спросить сервер не о чем.
+* **Откалибровано по серверу.** На десяти промптах из настоящих чанков подсчёт
+  текстов сообщений токенизатором плюс 17 *в точности* совпал с
+  `prompt_tokens`, которые сообщила Ollama, на всех девяти русских промптах и
+  оказался на один меньше на английском. 17 — это собственные токены шаблона
+  чата (`CHAT_OVERHEAD`); запас ещё в 32 поглощает этот дрейф и стыки между
+  фрагментами, которые токенизатор не считает аддитивно.
+* **Бюджет:** 8 192 − 1 024 (ответ) − 17 − 32 = **7 119 токенов** на правила,
+  фрагменты и вопрос.
+* **Фрагменты добавляются по рангу, пока помещаются.** Не поместившийся
+  пропускается целиком — никогда не обрезается посреди определения, — а более
+  короткий ниже по списку ещё может войти; нумерация остаётся сплошной, так что
+  модель никогда не видит пропуска. Каждый пропущенный фрагмент пишется в лог
+  со своим id чанка, а их число возвращается вместе с ответом (`dropped`).
+* **Проверяется на каждом ответе.** Потоковый ответ заканчивается собственным
+  `prompt_tokens` сервера; он пишется в лог рядом с оценкой, с
+  предупреждением, если когда-нибудь превысит бюджет. На smoke-прогоне фазы 3 —
+  десять вопросов, по десять фрагментов, от 3 948 до 5 123 токенов промпта —
+  оценка каждый раз была больше реального значения ровно на 10 токенов:
+  разделители между фрагментами считаются как два токена, а стоят один.
 
-**Checked live** on a synthetic fragment and two answers: the judge listed
-the invented claim as unsupported and the answer as unfaithful, passed the
-faithful one, and named the point missing from the reference - 2-14 s per
-verdict with a short prompt. One definition was adjusted after watching it:
-a claim with a label but no support is a citation error too, and the judge
-records it under `unsupported` only, so that combination is not counted as a
-contradiction.
-
-**Known bias.** The default judge, `qwen3.5-9b-8k`, is also the default
-answering model, and models favour their own writing. A judge from another
-family - `gemma4-12b-8k`, or a stronger model behind an API - is one setting
-away (`JUDGE_MODEL`, `JUDGE_BASE_URL`), and calibration is what shows which
-to trust.
-
-**Alternatives rejected.**
-* *A 1-5 score per answer.* A 9B judge's scores are poorly calibrated, and
-  they cannot be compared with the author's yes/no labels.
-* *One judge call per claim* (FActScore-style decomposition). More precise,
-  but several times the calls - with some fifty questions and four models the
-  judging would take most of a day on this laptop - for a verdict the lists
-  already approximate.
-* *RAGAS or DeepEval.* Their prompts and parsing are hidden behind the
-  library, their faithfulness is that same per-claim decomposition, and every
-  line here has to be explainable.
+**Отвергнутые альтернативы.**
+* *Число символов, делённое на константу.* Замер на 3 000 проиндексированных
+  чанков: медиана символов на токен Qwen — 3,9 в русском тексте, 2,8 в русском
+  с формулами, 3,6 в коде и 2,4 в английском. Константа, безопасная для самого
+  плотного вида, тратит впустую больше трети окна на обычном тексте;
+  подобранная под обычный текст — переполняет окно на формулах на столько же.
+* *`tiktoken`.* Словари OpenAI, а не Qwen: подсчёты были бы уверенно неверными.
+* *Отправить, а потом прочитать `prompt_tokens`.* К тому моменту промпт уже
+  обрезан.
+* *Подрезать каждый фрагмент до размера.* Фрагмент — это чанк, построенный как
+  самодостаточный (ADR-020); половина одного хуже, чем другой целый.
 
 ---
 
-## ADR-029. Models are compared alone, on the same fragments, by a rule fixed in advance
+## ADR-025. Модель ссылается на метку; код её проверяет и пишет цитату
 
-**Context.** Phase 4 compares the answering models - `qwen3.5:4b`,
-`qwen3.5:9b` with and without thinking, `gemma4:12b`, each with an 8k window -
-on quality (faithfulness, completeness, citations, refusals) and on cost
-(time to first token, tokens per second, peak memory), and picks the default.
+**Контекст.** CLAUDE.md требует цитату после каждого утверждения в форме
+`[курс · «документ» · с. N]` и считает ошибкой цитату несуществующего
+фрагмента.
 
-**Decision - how they are compared.**
-* **Same fragments.** Every question is searched once; every model answers
-  from those fragments. A difference between two rows is the model's.
-* **One model in memory at a time.** The search models are released before
-  the first model loads, and every model starts with the others unloaded
-  (`keep_alive: 0`): on 16 GB, co-resident models page each other out and
-  the slowdown lands on whoever runs second (ADR-026).
-* **Speed from the model's side.** TTFT runs from the request to the first
-  token of the answer; tokens per second from the first output of any kind,
-  because thinking tokens are completion tokens too - Ollama streams them in
-  a separate `reasoning` field, checked live. Peak memory is the largest size
-  `/api/ps` reports while the model answers.
-* **Each model's own tokenizer** fits its prompt (ADR-024); the estimate is
-  checked against the size the server reports on every answer.
-* **Thinking gets room to think**: `max_output_tokens` 3072 for that variant,
-  which leaves some 5 000 tokens for fragments instead of 7 100.
-* **The judge runs after all generation**, so its model never shares memory
-  with one being timed.
+**Решение.**
+* **Фрагменты в промпте помечены `[Ф1]`…`[Ф10]`**, за каждой меткой — строка
+  контекста и страницы. Модели сказано ссылаться на метку; код сверяет каждую
+  метку с фрагментами, которые модель действительно получила, и заменяет её
+  полной цитатой. Названия курсов, документов и номера страниц никогда не
+  генерируются, поэтому их невозможно исказить или выдумать.
+* **Буква, а не голое число.** `[1]` не отличить от математики: `[0, 1]` — это
+  отрезок, а три из пяти курсов MVP математические. Парсер принимает `[Ф1]`,
+  `[Ф1, Ф3]`, `[Ф1; 3]`, `[ф2]`, `[Фрагмент 2]` и не трогает любые другие
+  скобки; тесты перечисляют случаи, среди них `[0, 1]`, `[a, b]`, `[формула]` и
+  `[Рис. 2]`.
+* **Ошибки видны и посчитаны.** Метка, за которой нет фрагмента, появляется в
+  ответе как `[нет фрагмента Ф9]`, попадает в `citation_errors` и в лог; так же
+  обрабатывается ответ без единой цитаты (если это не отказ). Процитировано ли
+  *каждое утверждение*, оценивает судья фазы 4: регулярное выражение не скажет,
+  где заканчивается одно утверждение.
+* **Раскрываются прямо в потоке.** Текст передаётся по мере поступления, кроме
+  участка от открывающей скобки: он придерживается, пока скобка не закроется (и
+  раскрывается, если это метка) или пока не наберётся больше 48 символов (и
+  тогда это обычный текст). Читатель ждёт максимум несколько токенов, а тест
+  проверяет на каждом возможном разбиении образца, что поток даёт ровно то же,
+  что рендеринг всего текста.
+* Два фрагмента с одной страницы, процитированные вместе, дают одну цитату.
 
-**The rule, fixed before any quality number exists.** Take the most faithful
-model; any model whose faithfulness is within the 95% interval of the best
-counts as equally faithful; among those, prefer the higher completeness, then
-the lower TTFT. Thinking is worth its latency only if it lifts faithfulness
-or completeness beyond that interval. Fixing the rule first keeps the choice
-from being fitted to whatever the numbers turn out to be.
+**Почему не дать модели писать полную цитату.** Кроме опечаток: метка — это 4
+токена вывода, полная цитата — 31–36 (посчитано токенизатором модели на
+синтетических названиях реальной длины). При ~15 токенах/с ответ с пятью
+цитатами тратил бы на их написание секунд на десять больше.
 
-**Measured - cost, on ad-hoc questions, not the evaluation set.** Quality
-waits for the author's questions; cost does not need them. Two runs, each on
-the same fragments for every model, `--no-judge`:
+**Отвергнутые альтернативы.**
+* *Голые числа, `[1]`* — неоднозначны в математике, как выше.
+* *Структурированный вывод* — JSON-список утверждений с id источников. Без
+  потоковой выдачи, новый способ сломаться для модели на 9B (невалидный JSON), а
+  читателю нужен связный текст.
+* *Атрибуция задним числом* — сопоставление каждого предложения с самым похожим
+  фрагментом. Она говорит, какой фрагмент *похож* на предложение, а не каким
+  пользовалась модель, и это вторая задача поиска, которую тоже надо оценивать.
 
-| model | TTFT | tokens/s | peak memory | answers |
+---
+
+## ADR-026. Десять фрагментов на ответ; нет фрагментов — нет вызова модели
+
+**Контекст.** Сколько фрагментов читает модель, из какого поиска и что она
+говорит, когда в методичках ответа нет. Recall хочет больше фрагментов;
+ожидание первого слова — меньше, потому что модель читает весь промпт, прежде
+чем что-то написать.
+
+**Решение.**
+* **Десять фрагментов** (`ANSWER_FRAGMENTS=10`), которые реранкер выбирает из
+  гибридного топ-30 (`RETRIEVAL_MODE=hybrid+rerank`, ADR-023).
+  * Десять — это глубина, на которой фаза 2 измеряет recall: recall@10 — это
+    шанс, что ответ вообще окажется перед моделью.
+  * Время чтения, измеренное на M3 Air с загруженной моделью и свободной
+    памятью: 2 фрагмента (782 токена промпта) — 5,1 с до первого токена, 6
+    (1 912) — 9,8 с, 10 (3 124) — 11,0 с, 14 (4 488) — 12,9 с. Переход от шести
+    к десяти стоит 1,2 с.
+  * При нехватке памяти это другая машина. Smoke-прогон фазы 3 — десять
+    вопросов, при открытых Xcode с отладчиком, мессенджере и браузере, при
+    12–17 ГБ занятого swap — читал те же десять фрагментов (3 900–5 100
+    токенов) за 29–47 с, со скоростью 98–149 токенов/с. Реранкер занимал
+    15–19 с там, где в одиночку в тот же час занимает 4,5 с (его 2,1 ГБ весов
+    были вытеснены, пока модель писала), а dense-поиск — 2–6 с вместо 0,1:
+    первое слово появлялось через 49–77 с. С `RERANKER_ENABLED=false` (четыре
+    вопроса из десяти) поиск занимал 0,1–0,5 с, а первое слово появлялось через
+    27–71 с. В любом случае больше всего времени уходит на чтение промпта.
+  * Это значение по умолчанию, которое фаза 4 проверит против качества ответов,
+    а не результат.
+* **Отказ.** Модели сказано отвечать ровно «В методичках этого нет.»; отказ
+  распознаётся независимо от кавычек, разметки, регистра и того, что идёт
+  дальше. Если поиск ничего не вернул (фильтр по курсу без совпадений или ни
+  один фрагмент не помещается в бюджет), сервис отказывает, не спрашивая модель:
+  цитировать было бы нечего, и ответ мог бы взяться только из памяти модели.
+* **Детерминированность.** Рассуждения выключены (ADR-003) и температура 0
+  (ADR-002): на один и тот же вопрос — один и тот же ответ, на что опираются
+  сравнения фазы 4.
+
+**Отвергнутые альтернативы.**
+* *Пять фрагментов* — на секунды быстрее, но каждый выброшенный фрагмент — шанс,
+  что ответ до модели так и не дойдёт; во что это обходится, покажут recall@5
+  против recall@10 в отчёте фазы 2.
+* *Заполнять весь бюджет* — в 7 119 токенов помещается около 17 фрагментов, но
+  семнадцатый у реранкера редко бывает релевантным, а каждый добавляет время
+  чтения и даёт модели на 9B больше возможностей запутаться.
+* *Порог по оценке реранкера*, ниже которого — отказ без обращения к модели. Это
+  агент фазы 5; чтобы выставить порог, нужны размеченные вопросы, а их пока нет.
+
+---
+
+## ADR-027. Один конвейер за CLI, `/ask` и потоком Server-Sent Events
+
+**Контекст.** Фаза 3 требует `POST /ask` (JSON), `POST /ask/stream` (SSE) и
+`nsu-rag ask` с логированием задержки по этапам: поиск, реранк, первый токен,
+весь ответ.
+
+**Решение.**
+* **Конвейер — один асинхронный генератор событий:** `sources`, затем `token`
+  за `token`, затем `done`. Поток пересылает их по мере поступления; `/ask` и
+  CLI ждут `done`. Один путь в коде, протестированный один раз.
+* **Источники идут первыми**, до того как модель начнёт: чтение промпта занимает
+  у модели на этом ноутбуке десять секунд и больше, а клиент тем временем может
+  показать, какие страницы читаются.
+* **Встроенная поддержка SSE в FastAPI** (`EventSourceResponse`,
+  `ServerSentEvent` в установленной FastAPI 0.141): без `sse-starlette`, и
+  keep-alive-пинги идут в комплекте. JSON каждого события пишется с
+  `ensure_ascii=False`, поэтому `curl -N` показывает русский текст, а не
+  экранирование `\u`.
+* **POST, а не GET:** вопрос — это тело запроса. Браузерный `EventSource` умеет
+  только GET; веб-клиент читает этот поток через `fetch`.
+* **Проверки до начала потока.** Как только потоковый endpoint запустился, его
+  `200` уже ушёл в сеть, поэтому проверки живут в одной зависимости: сначала
+  валидируется тело, затем загружается конвейер, затем проверяется курс — `422`
+  со списком проиндексированных курсов. Порядок потребовал исправления: FastAPI
+  вызывает собственные зависимости зависимости *до* валидации тела, поэтому,
+  когда конвейер был подзависимостью, пустой вопрос 20 с ждал загрузки моделей
+  и получил бы `503`, если бы они не загрузились. Теперь загрузка — вызов
+  внутри зависимости, который FastAPI делает только для валидного тела; это
+  закреплено тестом. Сбой после `200`, например LLM пропала посреди ответа,
+  завершает поток событием `error`. На `/ask` сбой LLM — это `502`: упало
+  что-то выше по цепочке, а не этот сервис.
+* **Загрузка по первому вопросу**, а не при старте: модели грузятся около 20 с,
+  `/health` должен отвечать сразу, а контейнер без ML-extras всё равно должен
+  запускаться. Неудачная загрузка — `503`, следующий вопрос пробует снова.
+  Загрузка заканчивается прогревочным поиском, чтобы первый настоящий вопрос не
+  платил за компиляцию ядер.
+* **Поиск идёт в рабочем потоке, по одному вопросу за раз.** Поиск и реранк
+  синхронные и тяжёлые; `asyncio.to_thread` оставляет цикл событий отзывчивым.
+  Блокировка выстраивает их в очередь: эмбеддер, cross-encoder и их быстрые
+  токенизаторы не рассчитаны на вызов из двух потоков одновременно. Генерация
+  не блокируется: Ollama сама планирует параллельные запросы.
+* **Время.** `search_ms` и `rerank_ms` — сколько занял каждый этап;
+  `llm_first_token_ms` — от запроса к модели до её первого токена, то есть
+  чтение промпта; `first_token_ms` и `total_ms` — от прихода вопроса, то есть
+  то, сколько реально ждёт читатель. Одна строка INFO на ответ добавляет токены
+  промпта (оценка и фактическое значение), токены ответа и токены/с.
+* **Ушедший читатель останавливает модель.** Поток модели закрывается в тот же
+  момент, когда читатель перестаёт слушать (`contextlib.aclosing` — без него
+  соединение живёт, пока сборщик мусора не финализирует генератор; тест
+  различает эти два случая), и Ollama затем отменяет генерацию. Проверено на
+  Ollama 0.34.3: поток, закрытый после 20 кусков запроса на 1 000 токенов,
+  логируется как отменённая задача, остановленная на 60 токенах, включая промпт.
+
+**Отвергнутые альтернативы.**
+* *WebSocket* — двусторонний канал, который вопросу и ответу не нужен.
+* *Загружать модели при старте* — `/health` молчал бы 20 с, а сломанный индекс
+  не дал бы сервису запуститься вместо того, чтобы о нём было сообщено.
+* *Очередь задач с опросом* — против «не усложнять», а токенам всё равно нужен
+  поток.
+
+---
+
+## ADR-028. Судья выносит решения о фактах, которые может проверить, в JSON, дважды на ответ
+
+**Контекст.** Фаза 4 оценивает ответы LLM-судьёй на собственном endpoint
+(`JUDGE_*`): верность источникам, полнота относительно эталонного ответа автора,
+правильность цитат, отказы на вопросы без ответа — и калибрует судью по
+собственной разметке автора через согласие и каппу Коэна.
+
+**Решение.**
+* **Два вопроса на ответ, два вызова.** Для верности источникам и цитат нужны
+  фрагменты — помеченные ровно так, как их видела отвечающая модель, — и сырой
+  ответ с метками (раскрытые цитаты неоднозначны: два фрагмента одной страницы
+  печатаются одинаково). Для полноты нужны только вопрос, эталон и ответ —
+  гораздо более короткий промпт.
+* **Бинарные вердикты, как в разметке автора**, чтобы между ними можно было
+  посчитать каппу.
+* **JSON по схеме, списки перед вердиктами.** Судья заполняет `unsupported`,
+  `miscited`, `uncited` (или `missing`) и только потом `faithful` /
+  `citations_correct` (или `complete`): маленькая модель решает лучше, когда уже
+  записала, что нашла, а списки показывают читателю, *почему*. Ollama
+  соблюдает `response_format` со схемой JSON — проверено вживую на 0.34.3.
+  Ответ, который не разбирается, — это **сбой судьи**, он считается и попадает
+  в отчёт, но никогда не читается как вердикт; вердикт, противоречащий
+  собственным спискам, тоже считается.
+* **Что может проверить код, проверяет код.** Отказы распознаются по фразе
+  отказа, а не судьёй, и судье не отправляются; цитаты несуществующих
+  фрагментов считаются по самому ответу («валидные цитаты»); судья решает
+  только, подтверждает ли настоящая цитата своё утверждение («подтверждённые
+  цитаты»).
+* **Где учитывается отказ.** Против полноты на вопросе, у которого есть ответ, и
+  в точность отказов на вопросе без ответа; верность источникам измеряется по
+  фактически данным ответам. Метрика по нулю ответов — «—», а не 0.
+* **Ответы не попадают в git.** Они цитируют методички, поэтому каждый прогон
+  хранит их в `data/eval-runs/<date>-<mode>-<model>/`; отчёт в `eval/reports/`
+  содержит только id и числа.
+* **Калибровка** сверяет `eval/manual_labels.jsonl` автора (id, прогон,
+  faithful, complete) с вердиктами судьи на тех же ответах и сообщает согласие
+  и каппу отдельно по каждому вердикту: судья может хорошо справляться с одним и
+  быть бесполезным в другом.
+
+**Проверено вживую** на синтетическом фрагменте и двух ответах: судья занёс
+выдуманное утверждение в неподтверждённые, а ответ — в неверные источникам,
+пропустил верный ответ и назвал пункт, которого не хватало относительно
+эталона, — 2–14 с на вердикт при коротком промпте. После наблюдения поправлено
+одно определение: утверждение с меткой, но без подтверждения — тоже ошибка
+цитирования, и судья записывает его только в `unsupported`, чтобы такое
+сочетание не считалось противоречием.
+
+**Известное смещение.** Судья по умолчанию, `qwen3.5-9b-8k`, — это и отвечающая
+модель по умолчанию, а модели предпочитают собственные тексты. Судья из другого
+семейства — `gemma4-12b-8k` или более сильная модель через API — в одной
+настройке (`JUDGE_MODEL`, `JUDGE_BASE_URL`), а кому доверять, показывает
+калибровка.
+
+**Отвергнутые альтернативы.**
+* *Оценка 1–5 на ответ.* Оценки судьи на 9B плохо откалиброваны, и их нельзя
+  сравнить с разметкой автора «да/нет».
+* *Один вызов судьи на утверждение* (разбиение в стиле FActScore). Точнее, но в
+  разы больше вызовов — при пятидесяти вопросах и четырёх моделях оценка заняла
+  бы на этом ноутбуке большую часть суток — ради вердикта, который списки и так
+  приближают.
+* *RAGAS или DeepEval.* Их промпты и разбор ответов спрятаны в библиотеке, их
+  верность источникам — то же разбиение по утверждениям, а здесь каждая строка
+  должна быть объяснима.
+
+---
+
+## ADR-029. Модели сравниваются поодиночке, на одних и тех же фрагментах, по заранее зафиксированному правилу
+
+**Контекст.** Фаза 4 сравнивает отвечающие модели — `qwen3.5:4b`, `qwen3.5:9b`
+с рассуждениями и без, `gemma4:12b`, у каждой окно 8k — по качеству (верность
+источникам, полнота, цитаты, отказы) и по стоимости (время до первого токена,
+токены в секунду, пиковая память) и выбирает модель по умолчанию.
+
+**Решение — как они сравниваются.**
+* **Одни и те же фрагменты.** Каждый вопрос ищется один раз; все модели
+  отвечают по этим фрагментам. Разница между двумя строками — это разница
+  моделей.
+* **В памяти одна модель за раз.** Поисковые модели освобождаются до загрузки
+  первой модели, и каждая модель стартует с выгруженными остальными
+  (`keep_alive: 0`): на 16 ГБ модели, живущие вместе, вытесняют друг друга, и
+  замедление достаётся той, что идёт второй (ADR-026).
+* **Скорость со стороны модели.** TTFT считается от запроса до первого токена
+  ответа; токены в секунду — от первого вывода любого вида, потому что токены
+  рассуждений — тоже токены ответа: Ollama передаёт их в отдельном поле
+  `reasoning`, проверено вживую. Пиковая память — наибольший размер, который
+  сообщает `/api/ps`, пока модель отвечает.
+* **Собственный токенизатор каждой модели** укладывает её промпт в бюджет
+  (ADR-024); оценка сверяется с размером, который сообщает сервер, на каждом
+  ответе.
+* **Рассуждениям даётся место:** `max_output_tokens` 3072 для этого варианта,
+  что оставляет на фрагменты около 5 000 токенов вместо 7 100.
+* **Судья запускается после всей генерации**, чтобы его модель никогда не делила
+  память с той, которую замеряют.
+
+**Правило, зафиксированное до появления любых цифр качества.** Берём самую
+верную источникам модель; любая модель, чья верность попадает в 95%-й интервал
+лучшей, считается одинаково верной; среди них предпочитаем более высокую
+полноту, затем меньший TTFT. Рассуждения стоят своей задержки, только если
+поднимают верность или полноту за пределы этого интервала. Фиксация правила
+заранее не даёт подогнать выбор под то, какими окажутся цифры.
+
+**Измерено — стоимость, на произвольных вопросах, а не на оценочном наборе.**
+Качество ждёт вопросов автора; стоимости они не нужны. Два прогона, в каждом все
+модели на одних и тех же фрагментах, `--no-judge`:
+
+| модель | TTFT | токенов/с | пиковая память | ответов |
 |---|---:|---:|---:|---|
-| *run 1 - morning, machine fresh, 10 questions* | | | | |
-| `qwen3.5-4b` | 18.3 s | 22.6 | 3.25 GB | 10 of 10 |
-| *run 2 - hours of load, battery at 10-25% on a weak charger, 3 questions* | | | | |
-| `gemma4-12b` | 79.1 s | 4.0 | 7.83 GB | 3 of 3 |
-| `qwen3.5-9b` with thinking | - | - | 5.62 GB | **0 of 3** |
-| `qwen3.5-9b` | 50.5 s | 6.1 | 5.62 GB | 3 of 3 |
-| `qwen3.5-4b` | 31.3 s | 10.1 | 3.25 GB | 3 of 3 |
+| *прогон 1 — утро, машина свежая, 10 вопросов* | | | | |
+| `qwen3.5-4b` | 18,3 с | 22,6 | 3,25 ГБ | 10 из 10 |
+| *прогон 2 — после часов нагрузки, батарея 10–25% на слабой зарядке, 3 вопроса* | | | | |
+| `gemma4-12b` | 79,1 с | 4,0 | 7,83 ГБ | 3 из 3 |
+| `qwen3.5-9b` с рассуждениями | - | - | 5,62 ГБ | **0 из 3** |
+| `qwen3.5-9b` | 50,5 с | 6,1 | 5,62 ГБ | 3 из 3 |
+| `qwen3.5-4b` | 31,3 с | 10,1 | 3,25 ГБ | 3 из 3 |
 
-* **The same model ran twice as slow in the second run** - `qwen3.5-4b`,
-  18.3 s against 31.3 s to the first token. A fanless laptop after hours of
-  load, and a battery the system was protecting, are part of any measurement
-  here; only rows of one run compare - which is why the second run measured
-  every model under the same conditions, the morning's model last.
-* **Thinking answered nothing.** On all three questions `qwen3.5-9b` spent the
-  whole 3 072-token budget thinking and never started the answer - seven
-  minutes each. A larger budget would leave too little of the 8k window for
-  fragments: thinking and this design do not fit together.
-* **`gemma4-12b` costs 2.5 times `qwen3.5-4b`'s time** and 7.8 GB - half the
-  machine - before the search models and anything else.
-* **Every answer that came was cited correctly** (no citation of a fragment
-  that does not exist), and the prompt estimate was 9-12 tokens above the
-  server's count for every model: the budget holds for the Gemma tokenizer
-  and chat template too, not just Qwen's.
+* **Та же модель во втором прогоне работала вдвое медленнее** — `qwen3.5-4b`,
+  18,3 с против 31,3 с до первого токена. Ноутбук без вентилятора после часов
+  нагрузки и батарея, которую берегла система, — часть любого замера здесь;
+  сравнимы только строки одного прогона, — поэтому второй прогон измерил все
+  модели в одинаковых условиях, утреннюю модель — последней.
+* **Рассуждения не дали ни одного ответа.** На всех трёх вопросах `qwen3.5-9b`
+  потратила весь бюджет в 3 072 токена на рассуждения и так и не начала ответ —
+  по семь минут на каждый. Больший бюджет оставил бы слишком мало окна 8k на
+  фрагменты: рассуждения и эта архитектура несовместимы.
+* **`gemma4-12b` тратит в 2,5 раза больше времени, чем `qwen3.5-4b`,** и 7,8 ГБ —
+  половину машины — ещё до поисковых моделей и всего остального.
+* **Каждый полученный ответ был процитирован правильно** (ни одной цитаты
+  несуществующего фрагмента), а оценка промпта была на 9–12 токенов больше
+  подсчёта сервера для каждой модели: бюджет держится и для токенизатора и
+  шаблона чата Gemma, а не только Qwen.
 
-**Decision - the default, for now.** A cost ceiling comes before the quality
-rule: an answer that starts after a minute, or never, is not a service on
-this laptop. That rules out thinking and `gemma4-12b`. Between `qwen3.5-4b`
-and `qwen3.5-9b` the rule above decides once the author's questions exist;
-until then the default stays `qwen3.5-9b-8k`, the model every calibration so
-far was made with. If the 4B model's faithfulness falls within the 9B's
-interval, it wins: 1.6 times faster to the first word and 2.4 GB lighter.
+**Решение — модель по умолчанию, пока что.** Потолок стоимости идёт раньше
+правила качества: ответ, который начинается через минуту или не начинается
+вовсе, на этом ноутбуке не сервис. Это исключает рассуждения и `gemma4-12b`.
+Между `qwen3.5-4b` и `qwen3.5-9b` решит правило выше, когда появятся вопросы
+автора; до тех пор по умолчанию остаётся `qwen3.5-9b-8k` — модель, на которой
+сделаны все калибровки до сих пор. Если верность модели на 4B попадёт в
+интервал модели на 9B, выигрывает она: в 1,6 раза быстрее до первого слова и
+на 2,4 ГБ легче.
 
-**Alternatives rejected.**
-* *Each model with its own retrieval run.* The same search, repeated, costs
-  4-15 s per question per model and adds nothing: retrieval is deterministic.
-* *All models loaded together.* They do not fit in 16 GB; the measurements
-  would be of swapping.
-* *Choosing by speed now, quality later.* Speed is cheap to measure and
-  tempting to decide on, but a fast model that invents is worse than useless
-  here: the whole service is its citations.
+**Отвергнутые альтернативы.**
+* *Свой прогон поиска для каждой модели.* Тот же поиск, повторённый, стоит 4–15 с
+  на вопрос на модель и ничего не добавляет: поиск детерминирован.
+* *Все модели загружены одновременно.* В 16 ГБ они не помещаются; замерялся бы
+  swap.
+* *Выбрать по скорости сейчас, по качеству потом.* Скорость дёшево измерить, и
+  по ней соблазнительно решить, но быстрая модель, которая выдумывает, здесь
+  хуже, чем бесполезна: весь сервис держится на его цитатах.
 
 ---
 
-## ADR-030. The full corpus is a second index built by the same pipeline
+## ADR-030. Полный корпус — второй индекс, собранный тем же конвейером
 
-**Context.** Phase 4.5 brings in everything the MVP left out: scans that need
-OCR, the remaining courses, English documents - and asks whether recall and
-faithfulness change when the index holds ten times more text, and what to do
-with the giant references that could crowd the rest out.
+**Контекст.** Фаза 4.5 добавляет всё, что MVP оставил за бортом: сканы, которым
+нужен OCR, остальные курсы, англоязычные документы — и спрашивает, меняются ли
+recall и верность источникам, когда в индексе в десять раз больше текста, и
+что делать с гигантскими справочниками, которые могут вытеснить всё остальное.
 
-**Decision - the second index.**
-* **A corpus scope, not a second codebase.** `CORPUS_SCOPE=full` selects
-  every unique document - the include flags in `courses.yaml` describe the
-  MVP, and the full corpus is by definition what they left out - and
-  `corpus.full.env` points the chunks file and the Qdrant collection
-  elsewhere. The MVP index stays untouched, so the same questions can be put
-  to both; reports for the full index are named `<date>-retrieval-full.md`.
-* **The parse cache is shared**, keyed by content: a document parsed for the
-  MVP is not parsed again.
-* **OCR is a command of its own**, `nsu-rag ocr`, because it takes hours. It
-  recognises one page at a time and appends each to the document's cache the
-  moment it is done; a restart skips the pages already there, and a page the
-  engine fails on is recorded as empty and counted instead of stopping the
-  run. It logs progress with an estimate of the time left, and `--status`
-  answers "how far has it got" without disturbing it.
-* **Whole-page OCR** (`OcrMode.FULL_PAGE`) for every scan: these documents
-  have no text layer, or one the inventory rejected.
-* **Text from our OCR is marked `origin: ocr`**, apart from `ocr-layer` (a
-  scan someone else recognised) and `digital`, so the retrieval report breaks
-  recall down by where the text came from.
+**Решение — второй индекс.**
+* **Охват корпуса, а не вторая кодовая база.** `CORPUS_SCOPE=full` выбирает
+  каждый уникальный документ — флаги `include` в `courses.yaml` описывают MVP,
+  а полный корпус по определению то, что они не включили, — а
+  `corpus.full.env` направляет файл чанков и коллекцию Qdrant в другое место.
+  Индекс MVP остаётся нетронутым, поэтому одни и те же вопросы можно задать
+  обоим; отчёты для полного индекса называются `<date>-retrieval-full.md`.
+* **Кэш парсинга общий**, с ключом по содержимому: документ, разобранный для
+  MVP, повторно не парсится.
+* **OCR — отдельная команда**, `nsu-rag ocr`, потому что он идёт часами. Она
+  распознаёт по одной странице и дописывает каждую в кэш документа в момент
+  готовности; перезапуск пропускает уже готовые страницы, а страница, на
+  которой движок упал, записывается пустой и учитывается, вместо того чтобы
+  остановить прогон. Прогресс пишется в лог с оценкой оставшегося времени, а
+  `--status` отвечает «насколько продвинулся», не мешая работе.
+* **OCR всей страницы** (`OcrMode.FULL_PAGE`) для каждого скана: у этих
+  документов нет текстового слоя или он отвергнут инвентаризацией.
+* **Текст из нашего OCR помечается `origin: ocr`**, отдельно от `ocr-layer`
+  (скан, распознанный кем-то другим) и `digital`, чтобы отчёт о поиске разбивал
+  recall по происхождению текста.
 
-**Decision - the OCR engine: Apple's Vision**, through docling's `ocrmac`
-(`OCR_ENGINE=ocrmac`), which ADR-009 left to be measured. On the same nine
-random scan pages, after a warm-up page:
+**Решение — движок OCR: Vision от Apple**, через `ocrmac` в docling
+(`OCR_ENGINE=ocrmac`), который ADR-009 оставил на замер. На тех же девяти
+случайных страницах сканов после одной прогревочной страницы:
 
-| engine | seconds per page | characters per page |
+| движок | секунд на страницу | символов на страницу |
 |---|---:|---:|
-| Vision (`ocrmac`), Russian + English | 0.88 (0.72-1.25) | 1 166 |
-| RapidOCR, Russian | 1.63 (0.97-2.56) | 1 014 |
+| Vision (`ocrmac`), русский + английский | 0,88 (0,72–1,25) | 1 166 |
+| RapidOCR, русский | 1,63 (0,97–2,56) | 1 014 |
 
-Read side by side, RapidOCR's Russian-only model put Latin letters into
-Russian words, got the case of SQL keywords wrong and lost stretches of
-mathematical prose; Vision reads Russian and English in one pass - the
-problem ADR-009 left open for English scans - and kept both. The run itself:
-47 scanned documents, 20 040 pages, 7.9 hours, not one page the engine failed
-on. That is 0.8-0.9 s a page with the machine to itself and several seconds
-while the embedding model shared the GPU; phase 1a had estimated eleven hours
-with RapidOCR. docling's own markers for what it could not read are
-replaced with the parser's `[формула]` and `[рисунок]`, which the prompt
-explains to the model and the parse report counts.
+При сравнении бок о бок модель RapidOCR только для русского вставляла
+латинские буквы в русские слова, путала регистр ключевых слов SQL и теряла
+куски математического текста; Vision читает русский и английский за один
+проход — ту самую проблему с английскими сканами, которую ADR-009 оставил
+открытой, — и сохранил оба. Сам прогон: 47 сканированных документов, 20 040
+страниц, 7,9 часа, ни одной страницы, на которой движок упал бы. Это 0,8–0,9 с
+на страницу, когда машина свободна, и несколько секунд, пока эмбеддинг-модель
+делила с ним GPU; фаза 1a оценивала одиннадцать часов с RapidOCR. Собственные
+маркеры docling для того, что он не смог прочитать, заменяются маркерами
+парсера `[формула]` и `[рисунок]`, которые промпт объясняет модели, а отчёт
+парсинга подсчитывает.
 
-**Decision - the giant references stay, at full weight.** The full corpus is
-145 unique documents and 59 630 pages in 22 courses; 24 documents (17 394
-pages) are in English; indexed, it is 130 483 chunks. One document is 8% of
-all the pages - Intel's x86 manual, 4 778 pages - and with the other
-architecture documents it makes 18% of the chunks; next come the C++20 draft
-standard (1 815 pages) and a dozen textbooks of 1 000-1 700. Measured before
-deciding, without any author's question - top ten of the MVP index against
-the full one, for the same ad-hoc questions:
+**Решение — гигантские справочники остаются, с полным весом.** Полный корпус —
+145 уникальных документов и 59 630 страниц в 22 курсах; 24 документа (17 394
+страницы) на английском; в индексе это 130 483 чанка. Один документ — 8% всех
+страниц: руководство Intel по x86, 4 778 страниц, — а вместе с другими
+документами по архитектуре он даёт 18% чанков; дальше идут черновик стандарта
+C++20 (1 815 страниц) и дюжина учебников по 1 000–1 700. Измерено до принятия
+решения, без вопросов автора, — топ-10 индекса MVP против полного индекса на
+одних и тех же произвольных вопросах:
 
-* **Questions on the MVP's courses** (ten): the top ten stayed 70% the same
-  (median). Most of the rest are the scanned textbooks of the same courses,
-  recognised now - before the scans were in, 90% had stayed - and the best
-  reranker score held or rose. Other courses took 15 places in 100 -
-  "virtual memory" also found the architecture books, the expectation of a
-  random variable an algorithms book's probability appendix, rightly - and
-  **the giant references took none**.
-* **Questions only the full corpus can answer** (five): databases, C++ and
-  digital circuits found their own course in 7-10 places of 10; control
-  theory - four documents, 200 pages - lost to electrical engineering, which
-  covers transfer functions too.
-* **The giants are not crowding anything out; they are hard to reach.**
-  Search stays in the language of the question: a Russian question on x86
-  addressing modes got no English fragment in its top ten, the same question
-  in English got ten; a Russian question naming an instruction (`CMPXCHG`)
-  got six from the manual, its English twin ten.
+* **Вопросы по курсам MVP** (десять): топ-10 совпал на 70% (медиана). Большая
+  часть остального — сканированные учебники тех же курсов, теперь
+  распознанные (до добавления сканов совпадало 90%), а лучшая оценка
+  реранкера удержалась или выросла. Другие курсы заняли 15 мест из 100 —
+  «виртуальная память» нашла ещё и книги по архитектуре, математическое
+  ожидание случайной величины — вероятностное приложение книги по алгоритмам,
+  и справедливо, — а **гигантские справочники не заняли ни одного**.
+* **Вопросы, на которые может ответить только полный корпус** (пять): базы
+  данных, C++ и цифровые схемы нашли свой курс на 7–10 местах из 10; теория
+  управления — четыре документа, 200 страниц — проиграла электротехнике,
+  которая тоже рассказывает о передаточных функциях.
+* **Гиганты ничего не вытесняют — до них трудно дотянуться.** Поиск держится
+  языка вопроса: русский вопрос о режимах адресации x86 не получил в топ-10 ни
+  одного английского фрагмента, тот же вопрос на английском получил десять;
+  русский вопрос с названием инструкции (`CMPXCHG`) получил шесть фрагментов из
+  руководства, его английский двойник — десять.
 
-So nothing is dropped or down-weighted: the manuals take no room from other
-answers, and they are the only source when a question names an instruction or
-an identifier. What they show is the opposite problem - English documents are
-out of reach of Russian questions - and its fix belongs to retrieval, not to
-the corpus: a second search with the question translated, fused like BM25
-and dense are. That is next, not now: measuring it needs the author's
-questions.
+Поэтому ничего не выбрасывается и не понижается в весе: руководства не отнимают
+места у других ответов, и они — единственный источник, когда вопрос называет
+инструкцию или идентификатор. Они показывают обратную проблему — английские
+документы недоступны русским вопросам, — и её решение лежит в поиске, а не в
+корпусе: второй поиск с переведённым вопросом, объединённый так же, как BM25 и
+dense. Это следующий шаг, а не текущий: чтобы его измерить, нужны вопросы
+автора.
 
-**What the full corpus taught, on the way.**
-* **Two documents' text layers held control characters.** Fonts with no
-  Unicode mapping filled 209 of their pages with garbage, U+0085 ("next
-  line") among it - the parse report flags every one of those pages.
-  `str.splitlines()` breaks lines at U+0085, U+2028 and U+2029, and
-  `json.dumps(ensure_ascii=False)` leaves them unescaped, so a page's JSON
-  line was cut mid-string and the whole parse stopped. Every JSON Lines
-  reader now splits at `\n` alone (`nsu_rag_llm/jsonl.py`) - a bug the MVP's
-  documents had simply never triggered.
-* **Indexing died at 71%** on one write that timed out while Qdrant, in a VM
-  short of memory, built its HNSW graph for 74 000 points. Writes are
-  idempotent - ids come from content - so they are now retried like searches
-  (ADR-023), and the second run embedded only the 31 000 chunks missing.
-* **Handwritten notes do not OCR.** Vision reads print; one set of
-  handwritten lecture notes came out at a median of 316 characters a page,
-  with dozens of pages empty. The parse report lists them for review; they
-  stay in the index for whatever was read.
-* **OCR and embedding share the machine badly.** Vision slowed from under a
-  second a page to several while the embedding model ran on the GPU; the two
-  long jobs are best run one after the other.
+**Чему научил полный корпус по дороге.**
+* **В текстовых слоях двух документов были управляющие символы.** Шрифты без
+  отображения в Unicode заполнили 209 их страниц мусором, среди которого был
+  U+0085 («next line»), — отчёт парсинга помечает каждую из этих страниц.
+  `str.splitlines()` разбивает строки по U+0085, U+2028 и U+2029, а
+  `json.dumps(ensure_ascii=False)` оставляет их неэкранированными, поэтому
+  JSON-строка страницы обрывалась посреди строкового значения, и весь парсинг
+  останавливался. Теперь каждый читатель JSON Lines разбивает только по `\n`
+  (`nsu_rag_llm/jsonl.py`) — ошибка, которую документы MVP просто ни разу не
+  вызывали.
+* **Индексация умерла на 71%** на одной записи, которая упала по таймауту,
+  пока Qdrant в VM с нехваткой памяти строил граф HNSW на 74 000 точек. Записи
+  идемпотентны — id выводятся из содержимого, — поэтому теперь они
+  повторяются, как и поиски (ADR-023), а второй запуск посчитал эмбеддинги
+  только для 31 000 недостающих чанков.
+* **Рукописные конспекты не распознаются.** Vision читает печатный текст; один
+  набор рукописных конспектов лекций дал в медиане 316 символов на страницу,
+  с десятками пустых страниц. Отчёт парсинга перечисляет их на проверку; в
+  индексе они остаются ради того, что удалось прочитать.
+* **OCR и эмбеддинг плохо уживаются на одной машине.** Vision замедлялся с
+  меньше чем секунды на страницу до нескольких, пока эмбеддинг-модель работала
+  на GPU; две долгие задачи лучше запускать одну за другой.
 
-**Alternatives rejected.**
-* *One index, with a payload flag for the MVP subset.* The comparison needs
-  the MVP's BM25 statistics too, and they would be computed over the whole
-  corpus.
-* *OCR inside `nsu-rag parse`.* A command that sometimes takes a minute and
-  sometimes a night is a command nobody dares to run.
-* *Changing the author's include flags to widen the corpus.* They are the
-  author's decisions about the MVP (ADR-016), and the MVP index must stay
-  reproducible.
-
----
-
-## ADR-031. The agent is a small graph of plain functions; LangGraph holds the edges
-
-**Context.** Phase 5: a router picks the course from the question and filters
-the search; when the reranked results are weak, the query is rewritten and
-searched again, and otherwise the agent refuses; tools `search_course_materials`
-and `python_calc` (safe arithmetic, no `eval`); metrics compared with phase 3.
-CLAUDE.md keeps the RAG core free of LangChain wrappers.
-
-**Decision.**
-* **Five nodes** - route, retrieve, rewrite, generate, refuse - and one
-  conditional edge after retrieve. The nodes are plain async functions over
-  this project's own retrieval (`Answerer.retrieve`) and an OpenAI-compatible
-  client; LangGraph contributes the state, the edges and the loop, nothing
-  of LangChain's model or retriever abstractions.
-* **The router answers from a JSON enum** of the indexed courses plus "none",
-  so it cannot name a course that does not exist; an unreadable reply means no
-  filter. A course the user gave is never overridden.
-* **"Weak" is the reranker's best score** below `AGENT_MIN_SCORE`. The
-  cross-encoder reads question and passage together, so its score is a
-  judgement of relevance, unlike an RRF score, which only ranks - with the
-  reranker off, the agent never refuses on score. The threshold, 0.1, comes
-  from ten course questions and eight unrelated ones: the best score was
-  0.976-0.998 on every course question and 0.0008-0.023 on the unrelated
-  ones, so anything in between separates them. It is low on purpose: a
-  wrong refusal costs a student the answer, a missed one only the seconds
-  in which the model reads the fragments and refuses by itself. (One
-  question I had filed as unrelated, on unification in logic programming,
-  scored 0.94: the course's handbook does cover it.) The author's
-  unanswerable questions - plausible ones, by design - are what the
-  threshold should finally be tuned on.
-* **Two rewrites at most**, the second without the router's filter: a wrong
-  route is the likeliest reason a good question finds nothing.
-* **A refusal costs no generation**: the phase 3 prompt would only produce
-  the same refusal, ten seconds later.
-* **Tools inside generation.** `python_calc` walks the expression's syntax
-  tree and allows numbers, operators, `pi`/`e` and a list of math functions;
-  names, attributes, calls to anything else, strings and comprehensions are
-  refused before anything runs, and exponents, factorials and result sizes
-  are bounded (`((10**1000)**1000)**1000` is arithmetic too). A search from
-  the model adds at most three fragments, labelled after the first ten, and
-  only within a reserve of 1 500 tokens kept free in the prompt.
-* **No token streaming** for the agent: a reply may turn out to be a tool
-  call, known only when it is complete. The API sends the whole answer as
-  one `token` event.
-
-**Checked live** on five ad-hoc questions: the router sent an operating
-systems question to `os` and a combinatorics one to `tvims`, and answered
-"none" for a football question; on the combinatorics question the model
-called `python_calc` by itself and cited the fragment with the definition;
-the football question scored 0.004-0.005 on all three searches and was
-refused with no generation. A warm router call is 4-5 s.
-
-**Measured against phase 3** by `nsu-rag eval --stage agent`: both systems
-end to end on the author's questions, asked without a course as a student
-would, judged the same way, plus the router's accuracy and the searches per
-question.
-
-**Alternatives rejected.**
-* *LangChain's agent executor with its chat-model and retriever wrappers.*
-  It hides the prompts and the retrieval this project measures, against
-  CLAUDE.md's rule for the RAG core.
-* *Letting the model decide everything through tools* (a ReAct loop from the
-  start). Each extra decision is an extra 9B call on a laptop, and the fixed
-  path - route, search, check - is where the phase 3 failures are expected.
-* *`eval` with a restricted namespace for the calculator.* Restricted `eval`
-  has been escaped many times over (`().__class__.__bases__...`); walking the
-  tree allows only what is listed.
+**Отвергнутые альтернативы.**
+* *Один индекс с флагом в payload для подмножества MVP.* Сравнению нужна ещё и
+  статистика BM25 для MVP, а она считалась бы по всему корпусу.
+* *OCR внутри `nsu-rag parse`.* Команду, которая иногда занимает минуту, а
+  иногда ночь, никто не решится запустить.
+* *Менять флаги `include` автора, чтобы расширить корпус.* Это решения автора об
+  MVP (ADR-016), а индекс MVP должен оставаться воспроизводимым.
 
 ---
 
-## ADR-032. The container answers too: CPU search, hybrid only, the index mounted
+## ADR-031. Агент — небольшой граф из обычных функций; LangGraph держит рёбра
 
-**Context.** Phase 0's image served `/health` alone: the search models live in
-the `ml` extra, and the index is built natively on the Mac, where Metal is.
-A reader of this repository who runs `docker compose up` should get a service
-that answers.
+**Контекст.** Фаза 5: маршрутизатор выбирает курс по вопросу и фильтрует поиск;
+когда результаты после реранка слабые, запрос переформулируется и ищется
+снова, а иначе агент отказывает; инструменты `search_course_materials` и
+`python_calc` (безопасная арифметика, без `eval`); метрики сравниваются с
+фазой 3. CLAUDE.md требует, чтобы в ядре RAG не было обёрток LangChain.
 
-**Decision.**
-* **The image takes an `EXTRAS` build argument**; `docker-compose.yml` builds
-  it with `ml`. CI builds it without, which keeps its check fast and still
-  proves the Dockerfile.
-* **torch from PyTorch's CPU index on Linux.** The PyPI wheel for Linux
-  depends on CUDA libraries - gigabytes, for a container that has no GPU. A
-  `[tool.uv.sources]` entry with a `sys_platform == 'linux'` marker sends
-  Linux to `download.pytorch.org/whl/cpu` and leaves the Mac on PyPI's wheel
-  with Metal; one lock file serves both.
-* **Hybrid search only, in the container** (`RERANKER_ENABLED=false`): the
-  cross-encoder reads thirty passages per question, some 4 s on the Mac's
-  GPU and far longer on a container's CPU.
-* **The index is mounted, not copied**: `./data` read-only - the chunks for
-  BM25 and the course titles - and Qdrant is reached over the compose
-  network. Nothing from the corpus is ever in the image.
-* **Models download on the first question** into a named volume, kept
-  between runs; the image creates the cache directory owned by its user, so
-  that the volume takes that owner.
+**Решение.**
+* **Пять узлов** — route, retrieve, rewrite, generate, refuse — и одно условное
+  ребро после retrieve. Узлы — обычные асинхронные функции поверх собственного
+  поиска проекта (`Answerer.retrieve`) и OpenAI-совместимого клиента; LangGraph
+  даёт состояние, рёбра и цикл и ничего из абстракций LangChain для моделей и
+  поисковиков.
+* **Маршрутизатор отвечает значением из JSON-перечисления** проиндексированных
+  курсов плюс «none», поэтому не может назвать несуществующий курс;
+  нечитаемый ответ означает «без фильтра». Курс, указанный пользователем,
+  никогда не переопределяется.
+* **«Слабый» — это лучшая оценка реранкера** ниже `AGENT_MIN_SCORE`.
+  Cross-encoder читает вопрос и фрагмент вместе, поэтому его оценка — это
+  суждение о релевантности, в отличие от оценки RRF, которая только
+  ранжирует; при выключенном реранкере агент никогда не отказывает по оценке.
+  Порог 0,1 получен на десяти вопросах по курсам и восьми посторонних: лучшая
+  оценка была 0,976–0,998 на каждом вопросе по курсу и 0,0008–0,023 на
+  посторонних, так что их разделяет любое значение между ними. Он намеренно
+  низкий: ложный отказ стоит студенту ответа, а пропущенный — только секунд, за
+  которые модель прочитает фрагменты и откажет сама. (Один вопрос, который я
+  записал в посторонние, — про унификацию в логическом программировании —
+  получил 0,94: методичка курса и правда это покрывает.) Окончательно
+  настраивать порог нужно на вопросах автора без ответа — по замыслу
+  правдоподобных.
+* **Не больше двух переформулировок**, вторая — без фильтра маршрутизатора:
+  неверный маршрут — самая вероятная причина, по которой хороший вопрос ничего
+  не находит.
+* **Отказ не стоит генерации:** промпт фазы 3 дал бы тот же отказ, только на
+  десять секунд позже.
+* **Инструменты внутри генерации.** `python_calc` обходит синтаксическое дерево
+  выражения и разрешает числа, операторы, `pi`/`e` и список математических
+  функций; имена, атрибуты, вызовы чего-либо ещё, строки и генераторы списков
+  отвергаются до любого выполнения, а показатели степени, факториалы и размеры
+  результата ограничены (`((10**1000)**1000)**1000` — тоже арифметика). Поиск
+  от модели добавляет максимум три фрагмента с метками после первых десяти, и
+  только в пределах резерва в 1 500 токенов, оставленного в промпте свободным.
+* **Без потоковой выдачи токенов** у агента: ответ может оказаться вызовом
+  инструмента, а это известно только когда он закончен. API отправляет весь
+  ответ одним событием `token`.
 
-**Checked.** The image builds with the `ml` extra - 2.3 GB, torch fetched as
-the CPU build - and the container's `/health` reaches Qdrant over the compose
-network and Ollama on the host. The first attempt at `/ask` did not finish:
-with the OCR of the full corpus running and 9 GB of swap in use, OrbStack's VM
-had no memory to load the models into and stopped answering until it was
-stopped. With the long jobs done, the container answered: its first question
-took 194 s, some two minutes of it downloading and loading the models; the
-answer itself - hybrid search in 115 ms on the CPU, the host's Ollama reading
-the prompt in 35 s - came back with seven citations and no citation errors.
-The lesson stands in the README: a 16 GB laptop runs this service beside
-long jobs natively, not in a container.
+**Проверено вживую** на пяти произвольных вопросах: маршрутизатор отправил
+вопрос по операционным системам в `os`, вопрос по комбинаторике — в `tvims` и
+ответил «none» на вопрос о футболе; на вопросе по комбинаторике модель сама
+вызвала `python_calc` и процитировала фрагмент с определением; вопрос о футболе
+получил 0,004–0,005 во всех трёх поисках и был отклонён без генерации. Прогретый
+вызов маршрутизатора — 4–5 с.
 
-**Alternatives rejected.**
-* *Models baked into the image.* Gigabytes in every rebuild, for files that
-  never change.
-* *Ollama in the container too.* No Metal in a container on macOS: the 9B
-  model on a CPU is not a service (ADR-004 context).
-* *A second Dockerfile for the answering image.* Two files to keep in step
-  for one build argument.
+**Сравнение с фазой 3** — через `nsu-rag eval --stage agent`: обе системы от
+начала до конца на вопросах автора, заданных без курса, как спросил бы студент,
+с одинаковой оценкой судьёй, плюс точность маршрутизатора и число поисков на
+вопрос.
+
+**Отвергнутые альтернативы.**
+* *Agent executor из LangChain с его обёртками над чат-моделью и поисковиком.*
+  Он прячет промпты и поиск, которые этот проект измеряет, — против правила
+  CLAUDE.md для ядра RAG.
+* *Дать модели решать всё через инструменты* (цикл ReAct с самого начала).
+  Каждое лишнее решение — лишний вызов модели на 9B на ноутбуке, а сбои фазы 3
+  ожидаются именно на фиксированном пути: маршрут, поиск, проверка.
+* *`eval` с ограниченным пространством имён для калькулятора.* Ограниченный
+  `eval` обходили много раз (`().__class__.__bases__...`); обход дерева
+  разрешает только то, что перечислено.
+
+---
+
+## ADR-032. Контейнер тоже отвечает: поиск на CPU, только гибридный режим, индекс монтируется
+
+**Контекст.** Образ фазы 0 отдавал только `/health`: поисковые модели живут в
+extra `ml`, а индекс собирается нативно на Mac, где есть Metal. Читатель этого
+репозитория, который запустит `docker compose up`, должен получить сервис,
+который отвечает.
+
+**Решение.**
+* **Образ принимает аргумент сборки `EXTRAS`;** `docker-compose.yml` собирает его
+  с `ml`. CI собирает без него, что сохраняет проверку быстрой и всё равно
+  доказывает работоспособность Dockerfile.
+* **torch из CPU-индекса PyTorch на Linux.** Wheel с PyPI для Linux зависит от
+  библиотек CUDA — гигабайты для контейнера, в котором нет GPU. Запись в
+  `[tool.uv.sources]` с маркером `sys_platform == 'linux'` отправляет Linux в
+  `download.pytorch.org/whl/cpu` и оставляет Mac на wheel с PyPI с поддержкой
+  Metal; один lock-файл обслуживает оба случая.
+* **В контейнере только гибридный поиск** (`RERANKER_ENABLED=false`):
+  cross-encoder читает тридцать фрагментов на вопрос — около 4 с на GPU Mac и
+  гораздо дольше на CPU контейнера.
+* **Индекс монтируется, а не копируется:** `./data` только на чтение (чанки для
+  BM25 и названия курсов), а к Qdrant обращение идёт по сети compose. Ничего из
+  корпуса никогда не попадает в образ.
+* **Модели скачиваются при первом вопросе** в именованный volume, который
+  сохраняется между запусками; образ создаёт папку кэша, принадлежащую своему
+  пользователю, чтобы volume получил того же владельца.
+
+**Проверено.** Образ собирается с extra `ml` — 2,3 ГБ, torch приходит в
+CPU-сборке, — и `/health` контейнера достаёт до Qdrant по сети compose и до
+Ollama на хосте. Первая попытка `/ask` не завершилась: пока шёл OCR полного
+корпуса и было занято 9 ГБ swap, у VM OrbStack не нашлось памяти, чтобы
+загрузить модели, и она перестала отвечать, пока её не остановили. Когда долгие
+задачи закончились, контейнер ответил: первый вопрос занял 194 с, около двух
+минут из них — скачивание и загрузка моделей; сам ответ (гибридный поиск за
+115 мс на CPU, Ollama на хосте читала промпт 35 с) пришёл с семью цитатами и без
+ошибок цитирования. Вывод записан в README: ноутбук с 16 ГБ запускает этот
+сервис рядом с долгими задачами нативно, а не в контейнере.
+
+**Отвергнутые альтернативы.**
+* *Модели внутри образа.* Гигабайты в каждой пересборке ради файлов, которые
+  никогда не меняются.
+* *Ollama тоже в контейнере.* В контейнере на macOS нет Metal: модель на 9B на
+  CPU — это не сервис (контекст ADR-004).
+* *Второй Dockerfile для отвечающего образа.* Два файла, которые нужно держать в
+  согласии ради одного аргумента сборки.
