@@ -1,0 +1,26 @@
+# The generating models phase 4 compares: `nsu-rag eval --stage generation`.
+#
+# model      - an Ollama model built from its Modelfile in ollama/, context
+#              window pinned to 8192 tokens;
+# tokenizer  - the Hugging Face repository with that model's own tokenizer, to
+#              fit the prompt to the window (ADR-024);
+# reasoning_effort, max_output_tokens - "none" and 1024 unless given. Thinking
+#              spends its tokens before the answer starts, so the variant with
+#              thinking gets a larger reserve (and fewer tokens for fragments).
+- label: qwen3.5-4b
+  model: qwen3.5-4b-8k
+  tokenizer: Qwen/Qwen3.5-4B
+
+- label: qwen3.5-9b
+  model: qwen3.5-9b-8k
+  tokenizer: Qwen/Qwen3.5-9B
+
+- label: qwen3.5-9b-think
+  model: qwen3.5-9b-8k
+  tokenizer: Qwen/Qwen3.5-9B
+  reasoning_effort: high
+  max_output_tokens: 3072
+
+- label: gemma4-12b
+  model: gemma4-12b-8k
+  tokenizer: google/gemma-4-12B-it

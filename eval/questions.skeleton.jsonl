@@ -1,0 +1,60 @@
+{"id": "q001", "course": "lop", "question": "", "type": "factual", "gold": [{"file": "", "pages": []}], "reference_answer": ""}
+{"id": "q002", "course": "lop", "question": "", "type": "factual", "gold": [{"file": "", "pages": []}], "reference_answer": ""}
+{"id": "q003", "course": "lop", "question": "", "type": "factual", "gold": [{"file": "", "pages": []}], "reference_answer": ""}
+{"id": "q004", "course": "lop", "question": "", "type": "definition", "gold": [{"file": "", "pages": []}], "reference_answer": ""}
+{"id": "q005", "course": "lop", "question": "", "type": "definition", "gold": [{"file": "", "pages": []}], "reference_answer": ""}
+{"id": "q006", "course": "lop", "question": "", "type": "definition", "gold": [{"file": "", "pages": []}], "reference_answer": ""}
+{"id": "q007", "course": "lop", "question": "", "type": "comparison", "gold": [{"file": "", "pages": []}], "reference_answer": ""}
+{"id": "q008", "course": "lop", "question": "", "type": "comparison", "gold": [{"file": "", "pages": []}], "reference_answer": ""}
+{"id": "q009", "course": "lop", "question": "", "type": "multi_hop", "gold": [{"file": "", "pages": []}, {"file": "", "pages": []}], "reference_answer": ""}
+{"id": "q010", "course": "lop", "question": "", "type": "unanswerable", "gold": [], "reference_answer": "В методичках этого нет."}
+{"id": "q011", "course": "matan", "question": "", "type": "factual", "gold": [{"file": "", "pages": []}], "reference_answer": ""}
+{"id": "q012", "course": "matan", "question": "", "type": "factual", "gold": [{"file": "", "pages": []}], "reference_answer": ""}
+{"id": "q013", "course": "matan", "question": "", "type": "factual", "gold": [{"file": "", "pages": []}], "reference_answer": ""}
+{"id": "q014", "course": "matan", "question": "", "type": "definition", "gold": [{"file": "", "pages": []}], "reference_answer": ""}
+{"id": "q015", "course": "matan", "question": "", "type": "definition", "gold": [{"file": "", "pages": []}], "reference_answer": ""}
+{"id": "q016", "course": "matan", "question": "", "type": "definition", "gold": [{"file": "", "pages": []}], "reference_answer": ""}
+{"id": "q017", "course": "matan", "question": "", "type": "comparison", "gold": [{"file": "", "pages": []}], "reference_answer": ""}
+{"id": "q018", "course": "matan", "question": "", "type": "comparison", "gold": [{"file": "", "pages": []}], "reference_answer": ""}
+{"id": "q019", "course": "matan", "question": "", "type": "multi_hop", "gold": [{"file": "", "pages": []}, {"file": "", "pages": []}], "reference_answer": ""}
+{"id": "q020", "course": "matan", "question": "", "type": "unanswerable", "gold": [], "reference_answer": "В методичках этого нет."}
+{"id": "q021", "course": "os", "question": "", "type": "factual", "gold": [{"file": "", "pages": []}], "reference_answer": ""}
+{"id": "q022", "course": "os", "question": "", "type": "factual", "gold": [{"file": "", "pages": []}], "reference_answer": ""}
+{"id": "q023", "course": "os", "question": "", "type": "factual", "gold": [{"file": "", "pages": []}], "reference_answer": ""}
+{"id": "q024", "course": "os", "question": "", "type": "definition", "gold": [{"file": "", "pages": []}], "reference_answer": ""}
+{"id": "q025", "course": "os", "question": "", "type": "definition", "gold": [{"file": "", "pages": []}], "reference_answer": ""}
+{"id": "q026", "course": "os", "question": "", "type": "definition", "gold": [{"file": "", "pages": []}], "reference_answer": ""}
+{"id": "q027", "course": "os", "question": "", "type": "comparison", "gold": [{"file": "", "pages": []}], "reference_answer": ""}
+{"id": "q028", "course": "os", "question": "", "type": "comparison", "gold": [{"file": "", "pages": []}], "reference_answer": ""}
+{"id": "q029", "course": "os", "question": "", "type": "multi_hop", "gold": [{"file": "", "pages": []}, {"file": "", "pages": []}], "reference_answer": ""}
+{"id": "q030", "course": "os", "question": "", "type": "unanswerable", "gold": [], "reference_answer": "В методичках этого нет."}
+{"id": "q031", "course": "tvims", "question": "", "type": "factual", "gold": [{"file": "", "pages": []}], "reference_answer": ""}
+{"id": "q032", "course": "tvims", "question": "", "type": "factual", "gold": [{"file": "", "pages": []}], "reference_answer": ""}
+{"id": "q033", "course": "tvims", "question": "", "type": "factual", "gold": [{"file": "", "pages": []}], "reference_answer": ""}
+{"id": "q034", "course": "tvims", "question": "", "type": "definition", "gold": [{"file": "", "pages": []}], "reference_answer": ""}
+{"id": "q035", "course": "tvims", "question": "", "type": "definition", "gold": [{"file": "", "pages": []}], "reference_answer": ""}
+{"id": "q036", "course": "tvims", "question": "", "type": "definition", "gold": [{"file": "", "pages": []}], "reference_answer": ""}
+{"id": "q037", "course": "tvims", "question": "", "type": "comparison", "gold": [{"file": "", "pages": []}], "reference_answer": ""}
+{"id": "q038", "course": "tvims", "question": "", "type": "comparison", "gold": [{"file": "", "pages": []}], "reference_answer": ""}
+{"id": "q039", "course": "tvims", "question": "", "type": "multi_hop", "gold": [{"file": "", "pages": []}, {"file": "", "pages": []}], "reference_answer": ""}
+{"id": "q040", "course": "tvims", "question": "", "type": "unanswerable", "gold": [], "reference_answer": "В методичках этого нет."}
+{"id": "q041", "course": "vychmat", "question": "", "type": "factual", "gold": [{"file": "", "pages": []}], "reference_answer": ""}
+{"id": "q042", "course": "vychmat", "question": "", "type": "factual", "gold": [{"file": "", "pages": []}], "reference_answer": ""}
+{"id": "q043", "course": "vychmat", "question": "", "type": "factual", "gold": [{"file": "", "pages": []}], "reference_answer": ""}
+{"id": "q044", "course": "vychmat", "question": "", "type": "definition", "gold": [{"file": "", "pages": []}], "reference_answer": ""}
+{"id": "q045", "course": "vychmat", "question": "", "type": "definition", "gold": [{"file": "", "pages": []}], "reference_answer": ""}
+{"id": "q046", "course": "vychmat", "question": "", "type": "definition", "gold": [{"file": "", "pages": []}], "reference_answer": ""}
+{"id": "q047", "course": "vychmat", "question": "", "type": "comparison", "gold": [{"file": "", "pages": []}], "reference_answer": ""}
+{"id": "q048", "course": "vychmat", "question": "", "type": "comparison", "gold": [{"file": "", "pages": []}], "reference_answer": ""}
+{"id": "q049", "course": "vychmat", "question": "", "type": "multi_hop", "gold": [{"file": "", "pages": []}, {"file": "", "pages": []}], "reference_answer": ""}
+{"id": "q050", "course": "vychmat", "question": "", "type": "unanswerable", "gold": [], "reference_answer": "В методичках этого нет."}
+{"id": "q051", "course": "bd", "question": "", "type": "factual", "gold": [{"file": "", "pages": []}], "reference_answer": ""}
+{"id": "q052", "course": "diskretka", "question": "", "type": "definition", "gold": [{"file": "", "pages": []}], "reference_answer": ""}
+{"id": "q053", "course": "eltech", "question": "", "type": "factual", "gold": [{"file": "", "pages": []}], "reference_answer": ""}
+{"id": "q054", "course": "evm", "question": "", "type": "factual", "gold": [{"file": "", "pages": []}], "reference_answer": ""}
+{"id": "q055", "course": "linal", "question": "", "type": "definition", "gold": [{"file": "", "pages": []}], "reference_answer": ""}
+{"id": "q056", "course": "matlog", "question": "", "type": "definition", "gold": [{"file": "", "pages": []}], "reference_answer": ""}
+{"id": "q057", "course": "proga", "question": "", "type": "comparison", "gold": [{"file": "", "pages": []}], "reference_answer": ""}
+{"id": "q058", "course": "seti", "question": "", "type": "factual", "gold": [{"file": "", "pages": []}], "reference_answer": ""}
+{"id": "q059", "course": "shemotehnika", "question": "", "type": "comparison", "gold": [{"file": "", "pages": []}], "reference_answer": ""}
+{"id": "q060", "course": "tfkp-diffury", "question": "", "type": "definition", "gold": [{"file": "", "pages": []}], "reference_answer": ""}
