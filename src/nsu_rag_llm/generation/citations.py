@@ -1,0 +1,90 @@
+from __future__ import annotations
+
+import re
+from dataclasses import dataclass, field
+
+LABEL = "Ф"
+
+CITATION = re.compile(
+    r"\[\s*Ф(?:рагмент)?\s*\d+(?:\s*[,;]\s*(?:Ф(?:рагмент)?\s*)?\d+)*\s*\]",
+    re.IGNORECASE,
+)
+PENDING = re.compile(r"\[[^\[\]\n]{0,48}$")
+
+
+@dataclass(frozen=True)
+class Fragment:
+    number: int
+    chunk: dict
+
+    @property
+    def label(self) -> str:
+        return f"[{LABEL}{self.number}]"
+
+    @property
+    def pages(self) -> str:
+        start, end = self.chunk["page_start"], self.chunk["page_end"]
+        return f"{start}" if start == end else f"{start}–{end}"
+
+    @property
+    def citation(self) -> str:
+        return f"[{self.chunk['course_title']} · «{self.chunk['doc_title']}» · с. {self.pages}]"
+
+
+@dataclass
+class Rendered:
+    text: str
+    cited: list[int] = field(default_factory=list)
+    """Fragment numbers the answer cites, in order of first appearance."""
+    errors: list[str] = field(default_factory=list)
+
+
+def render(text: str, fragments: dict[int, Fragment]) -> Rendered:
+    result = Rendered(text="")
+
+    def expand(match: re.Match) -> str:
+        parts: list[str] = []
+        for number in (int(n) for n in re.findall(r"\d+", match.group(0))):
+            fragment = fragments.get(number)
+            if fragment is None:
+                result.errors.append(f"ссылка [{LABEL}{number}] на несуществующий фрагмент")
+                part = f"[нет фрагмента {LABEL}{number}]"
+            else:
+                if number not in result.cited:
+                    result.cited.append(number)
+                part = fragment.citation
+            if part not in parts:
+                parts.append(part)
+        return " ".join(parts)
+
+    result.text = CITATION.sub(expand, text)
+    return result
+
+
+class StreamingRenderer:
+    def __init__(self, fragments: dict[int, Fragment]) -> None:
+        self.fragments = fragments
+        self.buffer = ""
+        self.cited: list[int] = []
+        self.errors: list[str] = []
+
+    def feed(self, delta: str) -> str:
+        self.buffer += delta
+        pending = PENDING.search(self.buffer)
+        cut = pending.start() if pending else len(self.buffer)
+        ready, self.buffer = self.buffer[:cut], self.buffer[cut:]
+        return self._render(ready)
+
+    def flush(self) -> str:
+        ready, self.buffer = self.buffer, ""
+        return self._render(ready)
+
+    def _render(self, text: str) -> str:
+        if not text:
+            return ""
+        rendered = render(text, self.fragments)
+        for number in rendered.cited:
+            if number not in self.cited:
+                self.cited.append(number)
+        self.errors += rendered.errors
+        return rendered.text

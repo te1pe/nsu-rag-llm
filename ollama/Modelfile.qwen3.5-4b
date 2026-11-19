@@ -1,0 +1,6 @@
+# Build:  ollama create qwen3.5-4b-8k -f ollama/Modelfile.qwen3.5-4b
+#
+# A phase 4 candidate: the same family as qwen3.5:9b at half the size. The
+# context window is pinned to 8192 tokens for the reason given in Modelfile.
+FROM qwen3.5:4b
+PARAMETER num_ctx 8192

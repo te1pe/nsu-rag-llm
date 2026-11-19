@@ -1,0 +1,8 @@
+# Build:  ollama create gemma4-12b-8k -f ollama/Modelfile.gemma4-12b
+#
+# A phase 4 candidate from another family: comparing it with qwen3.5 tells a
+# model's size apart from its training. The context window is pinned to 8192
+# tokens for the reason given in Modelfile. Thinking is on by default in this
+# model; LLM_REASONING_EFFORT=none switches it off per request.
+FROM gemma4:12b
+PARAMETER num_ctx 8192
